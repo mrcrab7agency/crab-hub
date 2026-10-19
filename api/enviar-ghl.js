@@ -3,6 +3,7 @@
 import { proteger, cuerpo, json } from './_lib/core.js';
 import { leer } from './_lib/almacen.js';
 import { ghl } from './_lib/ghl.js';
+import { FIRMA_HTML } from './_lib/firma.js';
 
 export const config = { api: { bodyParser: { sizeLimit: '6mb' } } };
 
@@ -40,7 +41,7 @@ export default proteger(async (req, res) => {
   pasos.push('PDF subido a GHL');
 
   // 3. Email con seguimiento
-  const html = String(b.mensaje).split(/\n{2,}/).map((p) => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`).join('');
+  const html = String(b.mensaje).split(/\n{2,}/).map((p) => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`).join('') + (b.sinFirma ? '' : FIRMA_HTML);
   const envio = await ghl(cfg, 'POST', '/conversations/messages', {
     type: 'Email', contactId, subject: String(b.asunto).slice(0, 200), html, attachments: [url],
     ...(cfg.emailFrom ? { emailFrom: cfg.emailFrom } : {}),
