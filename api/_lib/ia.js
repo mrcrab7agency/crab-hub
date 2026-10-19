@@ -25,7 +25,11 @@ export async function preguntar({ modelo, sistema, usuario, maxTokens = 2500, te
     signal: AbortSignal.timeout(55000),
   });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d?.error?.message || `La IA respondió ${r.status}`);
+  if (!r.ok) {
+    const m = d?.error?.message || '';
+    if (/credit card/i.test(m)) throw new Error('la IA se activa al añadir una tarjeta en Vercel (AI Gateway, con crédito gratis mensual).');
+    throw new Error(m || `La IA respondió ${r.status}`);
+  }
   return d.choices?.[0]?.message?.content || '';
 }
 
