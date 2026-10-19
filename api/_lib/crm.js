@@ -52,6 +52,15 @@ export const totalDe = (p) => {
   return p?.precioFinal !== undefined && p?.precioFinal !== null && p?.precioFinal !== '' ? Number(p.precioFinal) : sub;
 };
 
+// Logo para el panel: el guardado en el Blob, el de la web del cliente (vía proxy) o uno pequeño incrustado.
+export function logoDe(reg) {
+  const l = reg.p?.logo || '';
+  if (reg.logoV) return `/api/crm?logo=${reg.id}&v=${reg.logoV}`;
+  if (/^https?:/.test(l)) return '/api/logo?u=' + encodeURIComponent(l);
+  if (/^data:image\//.test(l) && l.length < 120000) return l;
+  return '';
+}
+
 export function resumenDe(reg) {
   const p = reg.p || {};
   const envios = p.envios || [];
@@ -59,7 +68,7 @@ export function resumenDe(reg) {
   const c = reg.crm || {};
   const fechas = [p.editado, reg.creado, ...envios.map((e) => e.fecha), ...envios.map((e) => e.abierto), ...(c.respuestas || []).map((r) => r.fecha), c.cierre?.fecha].filter(Boolean).sort();
   return {
-    id: reg.id, cliente: p.cliente || '', razon: p.razon || '', ref: p.ref || '', email: ult?.para || p.email || '', logo: /^https?:/.test(p.logo || '') ? p.logo : '',
+    id: reg.id, cliente: p.cliente || '', razon: p.razon || '', ref: p.ref || '', email: ult?.para || p.email || '', logo: logoDe(reg),
     empleados: (p.empleados || []).length, total: totalDe(p), estado: estadoDe(reg), envios: envios.length,
     ultimoEnvio: ult?.fecha || null, abierto: envios.map((e) => e.abierto).filter(Boolean).sort().pop() || null, estadoEmail: ult?.estadoEmail || '', respuestas: (c.respuestas || []).length,
     noLeidas: (c.respuestas || []).filter((r) => !r.leida).length, academia: !!p.academia, externo: !!p.externo, holded: !!(p.holded?.firma || p.holded?.final),
