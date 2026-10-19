@@ -23,6 +23,8 @@ Sector: ${b.sector || '-'}
 Tamaño: ${b.tamano || '-'}
 Rasgos del negocio: ${(b.puntos || []).join('; ') || '-'}
 Indicaciones de Javi: ${b.notas || '-'}
+Requisitos del cliente (de sus audios, documentos y notas):
+${(Array.isArray(b.requisitos) ? b.requisitos : []).map((r) => `[${String(r.nombre || '').slice(0, 80)}]\n${String(r.resumen || '').slice(0, 4000)}`).join('\n\n').slice(0, 16000) || '-'}
 Número de empleados deseado: ${b.num || 'el que encaje'}
 Tarifa objetivo (suma de 1.000 € × coeficientes): ${objetivo ? objetivo + ' €' : 'la que encaje con el negocio'}
 
@@ -30,6 +32,7 @@ Devuelve:
 {"titular":"titular de portada, máx. 12 palabras, con la cifra de empleados en letra (ej. 'Diez empleados de inteligencia artificial para ...')",
 "intro":"2 frases: fórmula 1.000 € × coeficiente y por qué unos puestos llevan más reglas que otros en este negocio",
 "empleados":[{"nombre":"puesto, 2-4 palabras","alcance":"qué hace en una frase concreta de este negocio","coef":0.2}]}
+Prioridad: los requisitos del cliente y las indicaciones de Javi mandan sobre la actividad genérica del negocio. Cada requisito o prioridad debe quedar cubierto por al menos un puesto, con el alcance redactado con sus palabras y datos (tiendas, volúmenes, herramientas). No propongas puestos de áreas que no aparezcan en requisitos o indicaciones salvo apoyo imprescindible para cubrirlos. Si no se indica número de empleados, calcula el que haga falta para cubrirlo bien.
 Ordena de mayor a menor coeficiente.${objetivo ? ' La suma de coeficientes × 1.000 debe ser exactamente ' + objetivo + ' € o lo más cercana posible por debajo.' : ''}`;
 
   const txt = await preguntar({ modelo: 'anthropic/claude-sonnet-5.5', sistema: SISTEMA, usuario, maxTokens: 4000 });
