@@ -386,6 +386,24 @@
     finally { cargando(b, false); }
   });
 
+  // ---------- alta en la academia (tras la firma) ----------
+  $('#btnAcademia').addEventListener('click', async () => {
+    leerCampos();
+    const email = ($('#email').value || estado.email || '').trim();
+    const empresa = estado.razon || estado.cliente;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast('Pon el email del cliente en el paso 1', true);
+    if (!empresa) return toast('Falta el nombre del cliente', true);
+    if (!confirm(`¿Dar de alta a ${empresa} en la Academia y enviar el email de bienvenida a ${email}?`)) return;
+    const b = $('#btnAcademia'); cargando(b, true, 'Dando de alta…');
+    try {
+      const d = await api('/api/alta-academia', { email, nombre: estado.contactoNombre || '', empresa });
+      estado.academia = { codigo: d.codigo, fecha: new Date().toISOString() }; guardar();
+      const enlace = d.conversationId ? `https://app.gohighlevel.com/v2/location/${encodeURIComponent(d.locationId)}/conversations/conversations/${encodeURIComponent(d.conversationId)}` : '';
+      $('#academiaOk').innerHTML = `<b>Alta en la Academia · código ${esc(d.codigo)}</b><span>${d.pasos.map(esc).join(' · ')}</span>${enlace ? `<a href="${enlace}" target="_blank" rel="noopener">Ver el email en GHL ↗</a>` : ''}`;
+      $('#academiaOk').hidden = false; toast('Bienvenida enviada a ' + email);
+    } catch (e) { toast(e.message, true); } finally { cargando(b, false); }
+  });
+
   // ---------- inicio ----------
   pintarCampos(); pintarGuardadas();
   fetch('/api/auth?a=me').then((r) => r.json()).then((d) => { if (d.ok) { mostrarApp(); vista(); } else mostrarLogin(); }).catch(mostrarLogin);
