@@ -155,14 +155,14 @@ export function construirHTML(p) {
       }
       if (idx === paginasDesglose.length - 1) cuerpo += `<tr class="sum"><td></td><td>Total · ${emps.length} empleados de IA</td><td></td><td class="r">media ${coef(media)}</td><td class="r">${eur(sub)}</td></tr>${filaAjuste}${filaTotal}`;
     }
-    return `<section class="page"><div class="content" style="padding-top:14mm"><h2>${titulo}</h2><p class="lead">${lead}</p><table class="tb">${cab}${cuerpo}</table></div>${foot(n)}</section>`;
+    return `<section class="page dg" data-titulo="${esc(titulo.replace(' (continuación)', ''))}"><div class="content" style="padding-top:14mm"><h2>${titulo}</h2><p class="lead">${lead}</p><table class="tb">${cab}${cuerpo}</table></div>${foot(n)}</section>`;
   }).join('');
 
   // Resumen de la portada
   let resumen;
   if (otros.length) {
     resumen = `<table class="tb"><tr><th>Piezas de la propuesta</th><th class="r">Importe</th></tr>
-<tr><td class="e"><b>Empleados de IA · ${emps.length} puestos</b><small>Desglose por empleado en ${split ? 'las páginas 2 a ' + (NP - 1) : 'la página 2'}.</small></td><td class="r"><b>${eur(total)} + IGIC</b></td></tr>
+<tr><td class="e"><b>Empleados de IA · ${emps.length} puestos</b><small>Desglose por empleado en <span class="rng">${split ? 'las páginas 2 a ' + (NP - 1) : 'la página 2'}</span>.</small></td><td class="r"><b>${eur(total)} + IGIC</b></td></tr>
 ${otros.map((o) => `<tr><td class="e"><b>${esc(o.nombre)}</b><small>${esc(o.desc || '')}</small></td><td class="r"><b>${esc(o.precio || '')}</b></td></tr>`).join('')}</table>`;
   } else {
     const grupos = new Map();
