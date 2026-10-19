@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Crab Hub · Mr Crab 7</title>
+<meta name="description" content="Crab Hub: panel interno de Mr Crab 7 para propuestas, contenido, mensajes y envíos certificados.">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#FFFFFF">
+<link rel="icon" href="/assets/crab.png">
+<link rel="stylesheet" href="/assets/app.css?v=1">
+</head>
+<body>
+
+<main class="login" id="login" hidden>
+  <section class="login-art" aria-hidden="true">
+    <div class="brand"><img src="/assets/crab.png" alt="" width="38" height="38"><div><b>Crab Hub</b><small>Mr Crab 7 · La Buena IA</small></div></div>
+    <div>
+      <h2>Todo tu trabajo en <em>un solo sitio.</em></h2>
+      <p>Propuestas de empleados de IA, contenido para redes, mensajes de WhatsApp y envíos certificados, con un único acceso.</p>
+    </div>
+    <ul class="login-flow">
+      <li><b>Propuestas</b><span>Datos del cliente y PDF en minutos</span></li>
+      <li><b>CertiMail</b><span>Contratos con firma y sello de tiempo</span></li>
+      <li><b>Inbox y Studio</b><span>Mensajes, reels y publicación</span></li>
+    </ul>
+  </section>
+  <div class="login-side">
+    <form class="login-card" id="loginForm" autocomplete="on">
+      <div class="brand"><img src="/assets/crab.png" alt="" width="38" height="38"><div><b>Crab Hub</b><small>Panel interno de Mr Crab 7</small></div></div>
+      <h1>Entra en tu panel</h1>
+      <p>Usa la contraseña de siempre del equipo.</p>
+      <label class="f" for="pw">Contraseña</label>
+      <input class="input" id="pw" type="password" autocomplete="current-password" required>
+      <button class="btn primary block" type="submit">Entrar</button>
+      <div class="login-err" id="loginErr" role="alert"></div>
+    </form>
+  </div>
+</main>
+
+<div class="app" id="app" hidden>
+  <aside class="side" aria-label="Navegación principal">
+    <div class="brand"><img src="/assets/crab.png" alt="" width="34" height="34"><div><b>Crab Hub</b><small>Mr Crab 7 · La Buena IA</small></div></div>
+    <nav class="nav">
+      <div class="nav-h">Ventas</div>
+      <a href="#propuestas" class="on" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg><span>Propuestas</span></a>
+      <a href="https://certimail-mrcrab7.netlify.app/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><span>CertiMail</span><i class="ext" title="Se abre en su app actual">↗</i></a>
+      <div class="nav-h">Clientes</div>
+      <a href="https://inboxmrcrab.netlify.app/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H8l-4 4Z"/></svg><span>Inbox WhatsApp</span><i class="ext" title="Se abre en su app actual">↗</i></a>
+      <div class="nav-h">Contenido</div>
+      <a href="https://mrcrab7hub.netlify.app/studio/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg><span>Studio</span><i class="ext" title="Se abre en su app actual">↗</i></a>
+      <a href="https://mrcrab7hub.netlify.app/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg><span>Publicar en redes</span><i class="ext" title="Se abre en su app actual">↗</i></a>
+    </nav>
+    <button class="btn ghost block" id="salir" type="button">Salir</button>
+  </aside>
+
+  <main class="main" id="propuestas">
+    <header class="head">
+      <div>
+        <p class="crumb">Ventas · Propuestas</p>
+        <h1>Propuesta de empleados de IA</h1>
+      </div>
+      <div class="head-actions">
+        <select class="input sm" id="guardadas" aria-label="Propuestas guardadas"><option value="">Propuestas guardadas…</option></select>
+        <button class="btn" id="nueva" type="button">Nueva</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="col">
+        <!-- 1. Cliente -->
+        <section class="card">
+          <div class="card-h"><span class="step">1</span><div><h2>Cliente</h2><p>Escribe su web o su nombre y busco el resto: datos de empresa, logo y colores.</p></div></div>
+          <div class="fields two">
+            <div><label class="f" for="cliente">Nombre comercial</label><input class="input" id="cliente" placeholder="Motorland Canarias"></div>
+            <div><label class="f" for="web">Web</label><input class="input" id="web" placeholder="motorlandgc.com" inputmode="url"></div>
+            <div><label class="f" for="email">Email del cliente</label><input class="input" id="email" type="email" placeholder="cliente@empresa.com"></div>
+            <div><label class="f" for="cif">CIF</label><input class="input" id="cif" placeholder="B12345678"></div>
+          </div>
+          <div class="row-actions">
+            <button class="btn primary" id="btnBuscar" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Buscar datos y logo</button>
+            <span class="hint" id="estadoBuscar"></span>
+          </div>
+          <div class="fields two">
+            <div><label class="f" for="razon">Razón social</label><input class="input" id="razon" placeholder="Motorland Canarias, S.L.U."></div>
+            <div><label class="f" for="para">Preparada para</label><input class="input" id="para" placeholder="Nombre de contacto · empresa"></div>
+            <div class="span2"><label class="f" for="actividad">Actividad</label><input class="input" id="actividad" placeholder="A qué se dedica"></div>
+          </div>
+          <div class="hallazgos" id="hallazgos" hidden></div>
+
+          <div class="logo-zone">
+            <div class="logo-prev" id="logoPrev"><span>Sin logo</span></div>
+            <div class="logo-opts">
+              <label class="f">Logo del cliente</label>
+              <div class="cands" id="cands"></div>
+              <div class="logo-tools">
+                <label class="btn sm" for="subirLogo">Subir logo</label><input id="subirLogo" type="file" accept="image/*" class="sr">
+                <label class="chk"><input type="checkbox" id="logoFondo"> Fondo blanco detrás</label>
+                <label class="chk">Tamaño <input type="range" id="logoAlto" min="32" max="80" value="56"></label>
+                <label class="chk">Color <input type="color" id="acento" value="#1677ff"></label>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. Empleados -->
+        <section class="card">
+          <div class="card-h"><span class="step">2</span><div><h2>Empleados de IA</h2><p>Fórmula: 1.000 € × coeficiente. Pocos perfiles altos y una base de juniors y becarios.</p></div></div>
+          <div class="fields three">
+            <div><label class="f" for="objetivo">Tarifa objetivo</label><input class="input" id="objetivo" type="number" min="0" step="100" placeholder="3000"></div>
+            <div><label class="f" for="num">Nº de empleados</label><input class="input" id="num" type="number" min="1" max="50" placeholder="10"></div>
+            <div><label class="f" for="notas">Indicaciones</label><input class="input" id="notas" placeholder="Prioridad: leads y financiación"></div>
+          </div>
+          <div class="row-actions">
+            <button class="btn primary" id="btnSugerir" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></svg>Proponer empleados con IA</button>
+            <span class="hint" id="estadoSugerir"></span>
+          </div>
+          <div class="tabla-wrap">
+            <table class="emps" id="emps">
+              <thead><tr><th>#</th><th>Puesto y alcance</th><th>Nivel</th><th class="r">Importe</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <button class="btn sm" id="addEmp" type="button">+ Añadir empleado</button>
+          <div class="fields">
+            <div><label class="f" for="titular">Titular de portada</label><input class="input" id="titular" placeholder="Diez empleados de inteligencia artificial para…"></div>
+            <div><label class="f" for="intro">Texto de «Cómo se calcula»</label><textarea class="input" id="intro" rows="3"></textarea></div>
+          </div>
+        </section>
+
+        <!-- 3. Precio -->
+        <section class="card">
+          <div class="card-h"><span class="step">3</span><div><h2>Precio y condiciones</h2><p>Si pones un precio final menor que la tarifa, el PDF muestra la tarifa tachada y el descuento en rojo.</p></div></div>
+          <div class="fields three">
+            <div><label class="f" for="precioFinal">Precio final (opcional)</label><input class="input" id="precioFinal" type="number" min="0" step="1" placeholder="= tarifa"></div>
+            <div><label class="f" for="plan">Plan de plataforma</label><select class="input" id="plan"><option value="autonomos">Autónomos · 99 €/mes</option><option value="empresas">Empresas · 249 €/mes</option><option value="libre">Libre · 0 €</option></select></div>
+            <div><label class="f" for="validez">Validez (días)</label><input class="input" id="validez" type="number" min="1" value="15"></div>
+            <div><label class="f" for="ref">Referencia</label><input class="input" id="ref" placeholder="MC7-XXX-2026-001"></div>
+            <div class="span2"><label class="f" for="ajusteLabel">Texto del descuento</label><input class="input" id="ajusteLabel" placeholder="Descuento especial (no extensible)"></div>
+            <div class="span3"><label class="f" for="nota">Nota adicional (opcional)</label><input class="input" id="nota" placeholder="Se añade a las condiciones de la última página"></div>
+          </div>
+          <label class="f">Otras piezas (opcional)</label>
+          <div id="otros"></div>
+          <button class="btn sm" id="addOtro" type="button">+ Añadir pieza (p. ej. Reservus IA)</button>
+        </section>
+      </div>
+
+      <aside class="col resumen">
+        <section class="card sticky">
+          <h2>Resumen</h2>
+          <dl class="cifras">
+            <div><dt>Empleados</dt><dd id="rEmp">0</dd></div>
+            <div><dt>Coeficiente medio</dt><dd id="rMedia">0,00</dd></div>
+            <div><dt>Tarifa</dt><dd id="rTarifa">0 €</dd></div>
+            <div class="dto" id="rDtoRow" hidden><dt id="rDtoLbl">Descuento</dt><dd id="rDto"></dd></div>
+            <div class="total"><dt>Total + IGIC</dt><dd id="rTotal">0 €</dd></div>
+            <div><dt>A la firma · a la finalización</dt><dd id="rPagos">—</dd></div>
+          </dl>
+          <div class="niveles" id="rNiveles"></div>
+          <button class="btn primary block lg" id="btnPdf" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5M12 11v6M9 14l3 3 3-3"/></svg>Generar PDF</button>
+          <p class="hint center" id="estadoPdf">Se guarda en este navegador al generar.</p>
+          <div class="pdf-actions" id="pdfActions" hidden>
+            <a class="btn block" id="descargar" download>Descargar PDF</a>
+            <p class="hint">Envío al cliente: por GHL (seguimiento de apertura). Contratos con firma: CertiMail.</p>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <section class="card visor" id="visor" hidden>
+      <div class="visor-h"><h2>Vista previa</h2><button class="btn sm ghost" id="cerrarVisor" type="button">Cerrar</button></div>
+      <iframe id="pdfFrame" title="Vista previa del PDF"></iframe>
+    </section>
+
+    <footer class="pie"><a href="https://mrcrab7.com" target="_blank" rel="noopener">©🦀MrCrab7 IA❤️Canarias</a></footer>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="/assets/app.js?v=1" defer></script>
+</body>
+</html>
