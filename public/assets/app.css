@@ -274,3 +274,4 @@ textarea.input{resize:vertical}
 #modalPdf{z-index:9}
 .pdf-card{max-width:980px;height:92vh;grid-template-rows:auto 1fr}
 .pdf-card iframe{width:100%;height:100%;border:0;border-radius:8px;background:#525659}
+.drawer-card{overflow:hidden}.dw-h{position:static}.dw-body{flex:1;overflow:auto;min-height:0}
