@@ -46,10 +46,11 @@ h1,h2,h3,.num{font-family:Sora,Inter,sans-serif}
 .meta div{border:1px solid #2a3550;border-radius:10px;padding:3mm 4mm}
 .meta span{display:block;font-size:7.4pt;letter-spacing:.1em;text-transform:uppercase;color:#8e9ab3}
 .meta b{font-size:9.4pt;font-weight:600}
-.content{padding:8mm 18mm 0}
+.content{padding:6.5mm 18mm 0}
+.tb.res td{padding:1.6mm 2mm}.tb.res td.e small{margin-top:0}
 h2{font-size:13.5pt;margin:0 0 2mm;font-weight:700}
 .lead{color:var(--mut);margin-bottom:4mm;font-size:9.4pt}
-.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm;margin:0 0 5mm}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm;margin:0 0 4mm}
 .kpi{background:var(--soft);border-radius:12px;padding:4mm 5mm;border:1px solid var(--line)}
 .kpi span{font-size:7.6pt;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);font-weight:600}
 .kpi .num{display:block;font-size:17pt;font-weight:700;margin-top:1mm;color:var(--ink);letter-spacing:0;text-transform:none}
@@ -168,7 +169,7 @@ ${otros.map((o) => `<tr><td class="e"><b>${esc(o.nombre)}</b><small>${esc(o.desc
     for (const e of emps) { const g = grupos.get(e.coef) || [0, []]; g[0]++; g[1].push(e.nombre); grupos.set(e.coef, g); }
     const rr = [...grupos.entries()].sort((x, y) => y[0] - x[0]).map(([k, [n, nombres]]) => `<tr><td class="e"><b>${nivel(k)} · ${coef(k)}</b><small>${esc(nombres.join(', '))}</small></td><td class="r">${n}</td><td class="r">${eur(1000 * k)}</td><td class="r"><b>${eur(1000 * k * n)}</b></td></tr>`).join('');
     const adj = ajuste ? `<tr class="adj${descuento ? ' dto' : ''}"><td>${esc(ajusteLabel)}</td><td></td><td></td><td class="r">${eur(ajuste)}</td></tr>` : '';
-    resumen = `<table class="tb" style="margin-bottom:6mm"><tr><th>Nivel y puestos</th><th class="r">N</th><th class="r">Unitario</th><th class="r">Subtotal</th></tr>${rr}${adj}<tr class="tot"><td>${totalLabel}</td><td class="r">${emps.length}</td><td></td><td class="r">${eur(total)} + IGIC</td></tr></table>`;
+    resumen = `<table class="tb res" style="margin-bottom:6mm"><tr><th>Nivel y puestos</th><th class="r">N</th><th class="r">Unitario</th><th class="r">Subtotal</th></tr>${rr}${adj}<tr class="tot"><td>${totalLabel}</td><td class="r">${emps.length}</td><td></td><td class="r">${eur(total)} + IGIC</td></tr></table>`;
   }
 
   const kpi3 = otros.length
@@ -182,7 +183,7 @@ ${otros.map((o) => `<tr><td class="e"><b>${esc(o.nombre)}</b><small>${esc(o.desc
   const p1 = `<section class="page"><div class="band"><div class="top">${logo}<img class="wm" src="${M.wm}" alt="Empleados IA"></div>
 <p class="eyebrow" style="margin-top:7mm">Propuesta económica · Empleados IA</p>
 <h1>${esc(p.titular)}</h1>
-<div class="meta"><div><span>Preparada para</span><b>${esc(p.para || p.cliente)}</b></div><div><span>Referencia</span><b>${ref}</b></div><div><span>Fecha · validez</span><b>${fechaES(hoy)} · hasta ${fechaES(vence)}</b></div></div></div>
+<div class="meta"><div><span>Preparada para</span><b>${esc(p.para || p.cliente)}</b></div><div><span>Referencia</span><b>${ref}</b></div><div><span>Fecha · validez</span><b>${fechaES(hoy)}<br>hasta ${fechaES(vence)}</b></div></div></div>
 <div class="content"><div class="kpis"><div class="kpi hl"><span>Implantación empleados de IA</span>${descuento ? `<div class="tach">Tarifa ${eur(sub)}</div>` : ''}<span class="num">${eur(total)}</span><small>${descuento ? `+ IGIC · descuento de ${eur(-ajuste)} aplicado` : '+ IGIC · en dos pagos'}</small></div>
 <div class="kpi"><span>Empleados de IA</span><span class="num">${emps.length}</span><small>coeficiente medio ${coef(media)}</small></div>${kpi3}</div>
 <h2>${otros.length ? 'Resumen de la inversión' : 'Cómo se calcula'}</h2><p class="lead">${esc(p.intro)}</p>${resumen}
