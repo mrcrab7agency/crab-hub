@@ -352,7 +352,7 @@
     $('#mgPara').value = estado.email || '';
     $('#mgNombre').value = estado.contactoNombre || '';
     $('#mgAsunto').value = `Propuesta de empleados de inteligencia artificial · ${estado.cliente}`;
-    $('#mgMensaje').value = `Hola${estado.contactoNombre ? ' ' + estado.contactoNombre : ''},\n\nTe adjunto la propuesta económica de empleados de inteligencia artificial para ${estado.cliente}, con el detalle de cada puesto, la forma de pago y las condiciones.\n\nSi te encaja, la aceptamos y arrancamos con la reunión de definición. Cualquier duda, me dices y lo vemos.\n\nUn saludo,\nJavier Fernández\nMr Crab 7 · La Buena IA\n828 120 037 · mrcrab7.com`;
+    $('#mgMensaje').value = `Hola${estado.contactoNombre ? ' ' + estado.contactoNombre : ''},\n\nTe adjunto la propuesta económica de empleados de inteligencia artificial para ${estado.cliente}, con el detalle de cada puesto, la forma de pago y las condiciones.\n\nSi te encaja, la aceptamos y arrancamos con la reunión de definición. Cualquier duda, me dices y lo vemos.\n\nUn saludo,`;
     $('#mgAdjunto').textContent = 'Adjunto: ' + ultimoPdf.nombre;
     $('#modalGhl').hidden = false; $('#mgPara').focus();
   }
