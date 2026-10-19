@@ -32,7 +32,7 @@ Devuelve:
 "empleados":[{"nombre":"puesto, 2-4 palabras","alcance":"qué hace en una frase concreta de este negocio","coef":0.2}]}
 Ordena de mayor a menor coeficiente.${objetivo ? ' La suma de coeficientes × 1.000 debe ser exactamente ' + objetivo + ' € o lo más cercana posible por debajo.' : ''}`;
 
-  const txt = await preguntar({ modelo: 'anthropic/claude-sonnet-4.5', sistema: SISTEMA, usuario, maxTokens: 4000 });
+  const txt = await preguntar({ modelo: 'anthropic/claude-sonnet-5.5', sistema: SISTEMA, usuario, maxTokens: 4000 });
   const d = sacarJSON(txt);
   d.empleados = (d.empleados || []).slice(0, 50).map((e) => {
     const c = Number(e.coef) || 0.2;

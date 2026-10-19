@@ -1,6 +1,6 @@
 // Busca datos del cliente: lee su web (nombre, contacto, logo, colores) y completa con búsqueda de IA en internet.
 import { proteger, cuerpo, json } from './_lib/core.js';
-import { preguntar, sacarJSON } from './_lib/ia.js';
+import { buscarConClaude, sacarJSON } from './_lib/ia.js';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140 Safari/537.36';
 
@@ -90,7 +90,7 @@ Contexto de su web: ${pista || '-'}
 
 Devuelve JSON con estas claves:
 {"nombre":"nombre comercial","razon":"razón social exacta con S.L./S.A.","cif":"","direccion":"domicilio","actividad":"a qué se dedica en una frase","sector":"una o dos palabras","tamano":"plantilla aproximada si se conoce","telefono":"","email":"","web":"","redes":["url"],"puntos_clave":["3 a 5 rasgos del negocio útiles para proponer empleados de IA"],"fuentes":["url"]}`;
-  const txt = await preguntar({ modelo: 'perplexity/sonar', sistema, usuario, maxTokens: 1500, temperatura: 0.1 });
+  const txt = await buscarConClaude({ sistema, usuario, maxTokens: 2000 });
   return sacarJSON(txt);
 }
 
