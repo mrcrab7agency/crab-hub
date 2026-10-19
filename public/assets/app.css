@@ -124,6 +124,7 @@ textarea.input{resize:vertical}
 .otro{display:grid;grid-template-columns:1fr 1.6fr 140px 32px;gap:8px;margin-bottom:8px}
 .otro button{border:0;background:transparent;color:var(--faint);cursor:pointer;font-size:18px}
 
+.col.resumen{align-self:stretch;display:block}
 .resumen .sticky{position:sticky;top:18px}
 .resumen h2{font-size:18px}
 .cifras{margin:0;display:grid;gap:0}

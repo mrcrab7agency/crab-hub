@@ -71,7 +71,7 @@
     box.style.setProperty('--acc', estado.acento || '#1677ff');
     box.innerHTML = '';
     if (!estado.logo) { box.innerHTML = '<span>Sin logo</span>'; return; }
-    const img = new Image(); img.src = estado.logo; img.alt = 'Logo del cliente';
+    const img = new Image(); img.src = ver(estado.logo); img.alt = 'Logo del cliente';
     img.style.height = Math.round((estado.logoAlto || 56) * (estado.logoFondo ? 0.75 : 1)) + 'px';
     img.onerror = () => { box.innerHTML = '<span>No se puede mostrar este logo</span>'; };
     if (estado.logoFondo) { const s = document.createElement('span'); s.className = 'clbox'; s.append(img); box.append(s); } else box.append(img);
@@ -81,7 +81,7 @@
     for (const u of estado.logos || []) {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'cand' + (u === estado.logo ? ' on' : '');
       b.title = 'Usar este logo';
-      const img = new Image(); img.src = u; img.alt = ''; img.loading = 'lazy';
+      const img = new Image(); img.src = ver(u); img.alt = '';
       img.onerror = () => b.remove();
       b.append(img); b.onclick = () => { estado.logo = u; pintarLogo(); pintarCandidatos(); guardar(); };
       c.append(b);
@@ -144,6 +144,7 @@
     h.innerHTML = lineas.join(''); h.hidden = !lineas.length;
     h.querySelectorAll('[data-email]').forEach((b) => (b.onclick = () => { $('#email').value = b.dataset.email; guardar(); }));
   }
+  const ver = (u) => (u && /^https?:/.test(u) ? '/api/logo?u=' + encodeURIComponent(u) : u);
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
   // ---------- empleados ----------
