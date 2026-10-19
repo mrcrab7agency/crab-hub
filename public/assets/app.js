@@ -573,7 +573,7 @@
     $('#crmFilas').innerHTML = filas.map((x) => `<tr data-id="${esc(x.id)}" tabindex="0">
       <td><div class="cli">${x.logo ? `<img src="${esc(x.logo)}" alt="">` : `<span class="ini">${esc((x.cliente || '?')[0].toUpperCase())}</span>`}<div><b>${esc(x.cliente || 'Sin nombre')}</b><small>${esc(x.email || x.ref || '')}</small></div></div></td>
       <td><span class="est ${x.estado}" title="${esc(NOMBRE_EST[x.estado] || '')}">${ETIQ[x.estado] || x.estado}</span></td>
-      <td class="r"><b>${eur(x.total || 0)}</b><br><span class="mut">${x.empleados} empleado${x.empleados === 1 ? '' : 's'}</span></td>
+      <td class="r"><b>${eur(x.total || 0)}</b><br><span class="mut">${x.externo ? 'PDF subido' : `${x.empleados} empleado${x.empleados === 1 ? '' : 's'}`}</span></td>
       <td class="mut">${x.ultimoEnvio ? fecha(x.ultimoEnvio) + (x.envios > 1 ? ` · ${x.envios} envíos` : '') : '-'}</td>
       <td class="mut">${x.abierto ? fechaHora(x.abierto) : x.envios ? 'Aún no' : '-'}</td>
       <td>${x.respuestas || '-'}${x.noLeidas ? `<span class="nuevo">${x.noLeidas} nueva${x.noLeidas > 1 ? 's' : ''}</span>` : ''}</td>
@@ -608,7 +608,18 @@
     const r = crm.abierto; if (!r) return;
     const p = r.p || {}; const c = r.crm || {}; const envios = p.envios || []; const ult = envios[envios.length - 1];
     $('#dwTitulo').innerHTML = `${esc(p.cliente || 'Sin nombre')} <span class="est ${r.estado}">${ETIQ[r.estado] || r.estado}</span>`;
-    $('#dwSub').textContent = [p.razon && p.razon !== p.cliente ? p.razon : '', p.ref, eur(r.total || 0) + ' + IGIC', `${(p.empleados || []).length} empleados`].filter(Boolean).join(' · ');
+    $('#dwSub').textContent = [p.razon && p.razon !== p.cliente ? p.razon : '', p.ref, eur(r.total || 0) + ' + impuestos', p.externo ? 'PDF subido' : `${(p.empleados || []).length} empleados`].filter(Boolean).join(' · ');
+    $('#dwAbrir').hidden = !!p.externo;
+    const listo = !!p.externo && !envios.length;
+    $('#dwEnvio').hidden = !listo;
+    if (listo) {
+      $('#evResumen').textContent = p.resumen || '';
+      $('#evCliente').value = p.cliente || ''; $('#evTotal').value = p.precioFinal || '';
+      $('#evPara').value = p.email || ''; $('#evNombre').value = p.contactoNombre || '';
+      $('#evAsunto').value = p.borrador?.asunto || `Propuesta para ${p.cliente || ''}`;
+      $('#evMensaje').value = p.borrador?.mensaje || `Hola${p.contactoNombre ? ' ' + p.contactoNombre : ''},\n\nTe adjunto la propuesta para ${p.cliente || 'vosotros'}. Si te encaja, la comentamos en una llamada y fijamos los siguientes pasos.\n\nUn saludo,`;
+      $('#evAdj').textContent = 'Adjunto: ' + (p.externo.nombre || 'propuesta.pdf');
+    }
     const logo = /^(https?:|data:image)/.test(p.logo || '') ? p.logo : '';
     $('#dwLogo').hidden = !logo; if (logo) $('#dwLogo').src = logo;
     const cerrada = ['ganada', 'perdida'].includes(c.cierre?.estado);
@@ -625,12 +636,12 @@
     if (p.academia) tl.push({ fecha: p.academia.fecha, tipo: 'ganada', texto: 'Alta en la Academia · código ' + (p.academia.codigo || '') });
     if (p.holded?.firma) tl.push({ fecha: p.holded.firma.fecha, tipo: 'nota', texto: 'Factura de firma en Holded (borrador) · ' + eur(p.holded.firma.importe) });
     tl.sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
-    const accionTl = (h) => (h.tipo === 'creada' ? 'editor' : ['envio', 'abierta'].includes(h.tipo) || h.tipo === 'ganada' ? 'pdf' : '');
+    const accionTl = (h) => (h.tipo === 'creada' ? (p.externo ? 'pdf' : 'editor') : ['envio', 'abierta'].includes(h.tipo) || h.tipo === 'ganada' ? 'pdf' : '');
     $('#dwHistorial').innerHTML = tl.map((h) => { const a = accionTl(h); return `<li class="${esc(h.tipo)}${a ? ' link' : ''}"${a ? ` data-acc="${a}" tabindex="0" title="${a === 'editor' ? 'Abrir la propuesta en el editor' : 'Ver el PDF de la propuesta'}"` : ''}>${esc(h.texto)}${a ? `<span class="ir">${a === 'editor' ? 'Abrir ›' : 'Ver PDF ›'}</span>` : ''}<small>${fechaHora(h.fecha)}</small></li>`; }).join('') || '<li>Sin movimientos</li>';
   }
   $('#dwCerrar').addEventListener('click', cerrarDrawer);
   $('#crmDrawer').addEventListener('click', (e) => { if (e.target.id === 'crmDrawer') cerrarDrawer(); });
-  document.addEventListener('keydown', (e) => { if (e.key !== 'Escape') return; if (!$('#modalPdf').hidden) { $('#pvCerrar').click(); return; } if (!$('#crmDrawer').hidden) cerrarDrawer(); });
+  document.addEventListener('keydown', (e) => { if (e.key !== 'Escape') return; if (!$('#modalSubir').hidden) { cerrarSubir(); return; } if (!$('#modalPdf').hidden) { $('#pvCerrar').click(); return; } if (!$('#crmDrawer').hidden) cerrarDrawer(); });
   const accionCrm = async (btn, datos, txt, ok) => {
     cargando(btn, true, txt);
     try { const d = await api('/api/crm', { id: crm.abierto.id, ...datos }); if (ok) toast(ok); return d; }
@@ -650,11 +661,15 @@
     const p = crm.abierto?.p; if (!p) return;
     const b = $('#dwPdf'); cargando(b, true, 'Generando PDF…');
     try {
-      const local = todas().find((x) => x.id === p.id);
-      const datos = { ...nuevoEstado(), ...p, ...(local?.logo ? { logo: local.logo } : {}), logos: undefined, envios: undefined };
-      datos.para = datos.para || (datos.razon || datos.cliente) + (datos.cif ? ' · CIF ' + datos.cif : '');
-      const r = await api('/api/pdf', datos, true);
-      const nombre = r.headers.get('X-Nombre-Archivo') || 'propuesta.pdf';
+      let r;
+      if (p.externo) r = await api('/api/crm', { op: 'pdf', id: p.id }, true);
+      else {
+        const local = todas().find((x) => x.id === p.id);
+        const datos = { ...nuevoEstado(), ...p, ...(local?.logo ? { logo: local.logo } : {}), logos: undefined, envios: undefined };
+        datos.para = datos.para || (datos.razon || datos.cliente) + (datos.cif ? ' · CIF ' + datos.cif : '');
+        r = await api('/api/pdf', datos, true);
+      }
+      const nombre = decodeURIComponent(r.headers.get('X-Nombre-Archivo') || 'propuesta.pdf');
       if (urlPdfCrm) URL.revokeObjectURL(urlPdfCrm);
       urlPdfCrm = URL.createObjectURL(await r.blob());
       $('#pvFrame').src = urlPdfCrm; $('#pvBajar').href = urlPdfCrm; $('#pvBajar').download = nombre;
@@ -669,6 +684,54 @@
   const accionHistorial = (li) => { if (!li) return; if (li.dataset.acc === 'editor') $('#dwAbrir').click(); else if (li.dataset.acc === 'pdf') verPdfCrm(); };
   $('#dwHistorial').addEventListener('click', (e) => accionHistorial(e.target.closest('li[data-acc]')));
   $('#dwHistorial').addEventListener('keydown', (e) => { if (e.key === 'Enter') accionHistorial(e.target.closest('li[data-acc]')); });
+  const datosEnvio = () => ({ cliente: $('#evCliente').value.trim(), total: $('#evTotal').value === '' ? 0 : Number($('#evTotal').value), email: $('#evPara').value.trim(), contactoNombre: $('#evNombre').value.trim(), asunto: $('#evAsunto').value.trim(), mensaje: $('#evMensaje').value });
+  $('#evGuardar').addEventListener('click', async () => { if (await accionCrm($('#evGuardar'), { op: 'datos', ...datosEnvio() }, 'Guardando…', 'Cambios guardados')) recargarFicha(); });
+  $('#evEnviar').addEventListener('click', async () => {
+    const d = datosEnvio();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.email)) { $('#evPara').focus(); return toast('Pon el email del cliente', true); }
+    if (!d.asunto || d.mensaje.trim().length < 5) return toast('Falta el asunto o el mensaje', true);
+    if (!confirm(`¿Enviar la propuesta de ${d.cliente || 'este cliente'} a ${d.email} por GHL?`)) return;
+    const b = $('#evEnviar');
+    if (!(await accionCrm(b, { op: 'datos', ...d }, 'Guardando…'))) return;
+    const r = await accionCrm(b, { op: 'enviar', email: d.email, contacto: d.contactoNombre, asunto: d.asunto, mensaje: d.mensaje }, 'Enviando…');
+    if (r) { toast('Propuesta enviada a ' + d.email + ' · ' + (r.pasos || []).join(' · ')); recargarFicha(); }
+  });
+
+  // Subir una propuesta en PDF hecha fuera del editor
+  const abrirSubir = () => { $('#suEstado').textContent = ''; $('#suEstado').className = 'su-estado'; $('#modalSubir').hidden = false; };
+  const cerrarSubir = () => { if (!subiendo) $('#modalSubir').hidden = true; };
+  let subiendo = false;
+  $('#crmSubir').addEventListener('click', abrirSubir);
+  $('#suCerrar').addEventListener('click', cerrarSubir);
+  $('#modalSubir').addEventListener('click', (e) => { if (e.target.id === 'modalSubir') cerrarSubir(); });
+  $('#suFile').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) subirPdf(f); });
+  ['dragenter', 'dragover'].forEach((t) => $('#suDrop').addEventListener(t, (e) => { e.preventDefault(); $('#suDrop').classList.add('on'); }));
+  ['dragleave', 'drop'].forEach((t) => $('#suDrop').addEventListener(t, (e) => { e.preventDefault(); $('#suDrop').classList.remove('on'); }));
+  $('#suDrop').addEventListener('drop', (e) => { const f = e.dataTransfer.files[0]; if (f) subirPdf(f); });
+  async function subirPdf(f) {
+    if (subiendo) return;
+    const est = $('#suEstado'); est.className = 'su-estado';
+    if (!/\.pdf$/i.test(f.name) && f.type !== 'application/pdf') { est.className = 'su-estado bad'; est.textContent = 'Solo PDF.'; return; }
+    if (f.size > 30 * 1024 * 1024) { est.className = 'su-estado bad'; est.textContent = 'El PDF supera 30 MB.'; return; }
+    subiendo = true; $('#suDrop').classList.add('busy');
+    try {
+      const id = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)).replace(/[^a-z0-9-]/gi, '');
+      const TROZO = 3 * 1024 * 1024; const partes = Math.max(1, Math.ceil(f.size / TROZO));
+      for (let i = 0; i < partes; i++) {
+        est.innerHTML = `<span class="spin"></span>Subiendo ${esc(f.name)}${partes > 1 ? ` (${i + 1}/${partes})` : ''}…`;
+        await api('/api/crm', { op: 'trozo', id, n: i, datos: await aBase64(f.slice(i * TROZO, (i + 1) * TROZO)) });
+      }
+      est.innerHTML = '<span class="spin"></span>La IA está leyendo la propuesta y redactando el email…';
+      const d = await api('/api/crm', { op: 'importar', id, partes, nombre: f.name });
+      subiendo = false; $('#modalSubir').hidden = true;
+      if (location.hash !== '#seguimiento') location.hash = '#seguimiento';
+      await cargarCrm(false); await abrirDrawer(d.id);
+      $('#dwEnvio').scrollIntoView({ block: 'start' });
+      toast(d.aviso || 'Propuesta lista: revisa los datos y envíala');
+    } catch (e) { est.className = 'su-estado bad'; est.textContent = e.message; }
+    finally { subiendo = false; $('#suDrop').classList.remove('busy'); }
+  }
+
   $('#dwGanada').addEventListener('click', async () => { if (await accionCrm($('#dwGanada'), { op: 'marcar', estado: 'ganada' }, 'Guardando…', 'Marcada como ganada')) recargarFicha(); });
   $('#dwPerdida').addEventListener('click', async () => {
     const motivo = prompt('¿Por qué se ha perdido? (opcional)'); if (motivo === null) return;
