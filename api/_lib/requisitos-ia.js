@@ -12,7 +12,7 @@ Devuelve en español de España, con guiones, máximo 25 líneas y sin inventar 
 - Herramientas y aplicaciones que usa hoy.
 - Prioridades, plazos y presupuesto si los menciona.
 - Frases literales clave entre comillas, si las hay.
-Si algo no aparece, no lo pongas. No incluyas datos personales sensibles (DNI, cuentas, salud).`;
+Texto plano: sin asteriscos, negritas ni almohadillas. Si algo no aparece, no lo pongas. No incluyas datos personales sensibles (DNI, cuentas, salud).`;
 
 async function autorizado() {
   const t = await token();
