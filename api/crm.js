@@ -8,6 +8,7 @@ import { preguntar, sacarJSON } from './_lib/ia.js';
 import { put, get, list, del } from '@vercel/blob';
 import { conClaude } from './_lib/requisitos-ia.js';
 import { enviarPropuestaGhl } from './_lib/envio-ghl.js';
+import { sitioDe, buscarLogo, descargarImagen, tipoImagen, guardarLogo, leerLogo } from './_lib/logos.js';
 
 export const config = { api: { bodyParser: { sizeLimit: '4.4mb' } } };
 const okSubida = (s) => /^[a-z0-9-]{8,64}$/i.test(String(s || ''));
@@ -105,6 +106,15 @@ Si el cliente acepta, explica el siguiente paso: contrato y pago a la firma (50 
 Termina con un saludo breve firmado como "Javi". No incluyas asunto ni firma corporativa: se añade sola. Devuelve solo el texto del email.`;
 
 export default proteger(async (req, res) => {
+  if (req.method === 'GET') {
+    const id = String(req.query?.logo || '');
+    const l = idValido(id) ? await leerLogo(id) : null;
+    if (!l) return res.status(404).end();
+    res.setHeader('Content-Type', l.tipo);
+    res.setHeader('Cache-Control', 'private, max-age=86400');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'");
+    return res.status(200).send(l.buf);
+  }
   const b = cuerpo(req);
   const cfg = await leer('ghl');
 
@@ -166,6 +176,11 @@ export default proteger(async (req, res) => {
       resumen: s(d.resumen, 1200), borrador: { asunto: s(d.asunto, 200), mensaje: s(d.mensaje, 5000) }, envios: [],
     };
     const reg = { id, creado: new Date().toISOString(), p, crm: { historial: [{ fecha: new Date().toISOString(), tipo: 'creada', texto: `PDF subido: ${nombre}` }] } };
+    // Logo del cliente desde su web (no bloquea la importación si falla)
+    try {
+      const sitio = await sitioDe({ web: p.web, email: p.email, cliente: p.cliente, razon: p.razon });
+      if (sitio) { if (!p.web) p.web = sitio; const l = await buscarLogo(sitio); if (l) { await guardarLogo(id, l); reg.logoV = Date.now(); } }
+    } catch {}
     await guardarRegistro(reg);
     return json(res, 200, { ok: true, id, aviso: d.aviso || '' });
   }
@@ -208,7 +223,7 @@ export default proteger(async (req, res) => {
 
   if (b.op === 'detalle') {
     if (cfg && await refrescar(reg, cfg)) await guardarRegistro(reg);
-    return json(res, 200, { reg: { ...reg, estado: estadoDe(reg), total: totalDe(p) }, locationId: cfg?.locationId || '' });
+    return json(res, 200, { reg: { ...reg, estado: estadoDe(reg), total: totalDe(p), logoUrl: resumenDe(reg).logo }, locationId: cfg?.locationId || '' });
   }
 
 
@@ -219,6 +234,21 @@ export default proteger(async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('X-Nombre-Archivo', encodeURIComponent(p.externo.nombre || 'propuesta.pdf'));
     return res.status(200).send(buf);
+  }
+
+  if (b.op === 'logo') {
+    let img = null;
+    if (b.dataUrl) {
+      const m = String(b.dataUrl).match(/^data:image\/[a-z+.-]+;base64,(.+)$/i);
+      if (m) { const buf = Buffer.from(m[1], 'base64'); const tipo = tipoImagen(buf); if (tipo && buf.length < 2.5e6) img = { buf, tipo }; }
+    } else if (b.url) img = await descargarImagen(String(b.url));
+    else {
+      const sitio = await sitioDe({ web: b.web || p.web, email: p.email || ult?.para, cliente: p.cliente, razon: p.razon });
+      if (sitio) { img = await buscarLogo(sitio); if (!p.web) p.web = sitio; }
+    }
+    if (!img) return json(res, 404, { error: 'No he encontrado un logo válido. Prueba con la web del cliente o sube la imagen.' });
+    await guardarLogo(reg.id, img); reg.logoV = Date.now(); reg.p = p; await guardarRegistro(reg);
+    return json(res, 200, { ok: true, logo: `/api/crm?logo=${reg.id}&v=${reg.logoV}` });
   }
 
   if (b.op === 'datos') {
@@ -249,7 +279,11 @@ export default proteger(async (req, res) => {
     await guardarRegistro(reg); return json(res, 200, { ok: true });
   }
 
-  if (b.op === 'borrar') { await borrarRegistro(b.id); if (p.externo) { try { const l = await list({ prefix: rutaPdf(b.id) }); if (l.blobs.length) await del(l.blobs.map((x) => x.url)); } catch {} } return json(res, 200, { ok: true }); }
+  if (b.op === 'borrar') {
+    await borrarRegistro(b.id);
+    for (const pre of [p.externo ? rutaPdf(b.id) : '', `crm-logo/${b.id}`].filter(Boolean)) { try { const l = await list({ prefix: pre }); if (l.blobs.length) await del(l.blobs.map((x) => x.url)); } catch {} }
+    return json(res, 200, { ok: true });
+  }
 
   if (b.op === 'ia-respuesta') {
     const ultResp = (reg.crm.respuestas || []).slice(-1)[0];
@@ -311,4 +345,4 @@ Historial de respuestas previas del cliente:\n${(reg.crm.respuestas || []).slice
   }
 
   json(res, 400, { error: 'Acción no válida' });
-});
+}, ['POST', 'GET']);
