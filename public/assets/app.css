@@ -459,3 +459,9 @@ body{font-family:var(--font);font-feature-settings:"cv11","ss01"}
 .dw-h img{background:transparent;border-radius:0;width:100%;height:100%}
 @media (max-width:720px){.seg-metricas .m-big b{font-size:36px}.seg-metricas b{font-size:28px}.seg-tabs{flex-wrap:nowrap;overflow-x:auto;max-width:100%;scrollbar-width:none}.seg-tabs button{flex:none}.seg-lista-h{display:grid}.f-imp>small{display:none}}
 @media (max-width:720px){.pista i{width:12px}.f-etapa{min-width:0}}
+.fila{grid-template-columns:64px minmax(170px,1.5fr) 190px minmax(140px,1.1fr) 130px 104px}
+.lg{width:64px;height:48px;border-radius:12px}
+.lg img{padding:5px 6px}
+.dw-logo{width:76px;height:62px}
+@media (max-width:1180px){.fila{grid-template-columns:64px minmax(150px,1fr) 170px 120px 92px}}
+@media (max-width:720px){.fila{grid-template-columns:56px minmax(0,1fr) auto}.fila .lg{width:56px;height:44px}}

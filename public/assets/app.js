@@ -588,7 +588,7 @@
       <div class="m"><span>Tasa de apertura</span><b>${pct(abiertas, enviadas)}<small>%</small></b><em>${abiertas} de ${enviadas} enviadas</em></div>
       <div class="m"><span>Tasa de cierre</span><b>${pct(ganadas.length, cerradas)}<small>%</small></b><em>${cerradas ? `${ganadas.length} de ${cerradas} cerradas` : 'Sin cierres aún'}</em></div>`;
     const maxL = Math.max(1, llegan[0]);
-    $('#crmKpis').innerHTML = ETAPAS.map(([k, , n], i) => `<li><button type="button" data-f="${k}" class="${crm.filtro === k ? 'on' : ''}" style="--w:${Math.max(6, (llegan[i] / maxL) * 100)}%">
+    $('#crmKpis').innerHTML = ETAPAS.map(([k, , n], i) => `<li><button type="button" data-f="${k}" class="${crm.filtro === k ? 'on' : ''}" style="--w:${llegan[i] ? Math.max(6, (llegan[i] / maxL) * 100) : 0}%">
       <span class="f-n">${String(i + 1).padStart(2, '0')}</span><span class="f-t">${n}</span><b>${llegan[i]}</b>
       <span class="f-bar"><i></i></span><small>${i ? (llegan[i - 1] ? pct(llegan[i], llegan[i - 1]) + ' % de la etapa anterior' : '—') : 'Total del embudo'}</small></button></li>`).join('');
     $('#crmTabs').innerHTML = TABS.map(([k, n]) => { const c = its.filter((x) => enTab(x, k)).length; return `<button type="button" role="tab" data-f="${k}" class="${crm.filtro === k ? 'on' : ''}" aria-selected="${crm.filtro === k}">${n}<i>${c}</i></button>`; }).join('');
