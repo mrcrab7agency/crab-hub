@@ -8,7 +8,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#FFFFFF">
 <link rel="icon" href="/assets/crab.png">
-<link rel="stylesheet" href="/assets/app.css?v=5">
+<link rel="stylesheet" href="/assets/app.css?v=6">
 </head>
 <body>
 
@@ -210,6 +210,7 @@
       <div><p class="crumb">Ventas · Seguimiento</p><h1>Seguimiento de propuestas</h1></div>
       <div class="head-actions">
         <input class="input sm" id="crmBuscar" type="search" placeholder="Buscar cliente…" aria-label="Buscar cliente">
+        <button class="btn sm primary" id="crmSubir" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>Subir propuesta PDF</button>
         <button class="btn sm" id="crmRefrescar" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg>Actualizar estados</button>
       </div>
     </header>
@@ -285,6 +286,20 @@
       <button class="btn sm ghost" id="dwBorrar" type="button">Quitar</button>
     </div>
     <div class="dw-body">
+      <section class="dw-sec envio-pdf" id="dwEnvio" hidden>
+        <h3>Lista para enviar por GHL</h3>
+        <p class="hint" id="evResumen"></p>
+        <div class="fields two">
+          <div><label class="f" for="evCliente">Cliente</label><input class="input" id="evCliente"></div>
+          <div><label class="f" for="evTotal">Importe (€ sin impuestos)</label><input class="input" id="evTotal" type="number" min="0" step="0.01"></div>
+          <div><label class="f" for="evPara">Email del cliente</label><input class="input" id="evPara" type="email" placeholder="Pon el email si no venía en el PDF"></div>
+          <div><label class="f" for="evNombre">Nombre del contacto</label><input class="input" id="evNombre" placeholder="Opcional"></div>
+          <div class="span2"><label class="f" for="evAsunto">Asunto</label><input class="input" id="evAsunto"></div>
+          <div class="span2"><label class="f" for="evMensaje">Mensaje</label><textarea class="input" id="evMensaje" rows="8"></textarea></div>
+        </div>
+        <p class="hint" id="evAdj"></p>
+        <div class="row-actions"><button class="btn" id="evGuardar" type="button">Guardar cambios</button><button class="btn primary" id="evEnviar" type="button">Enviar por GHL</button><span class="hint">Sale con tu firma y seguimiento de apertura.</span></div>
+      </section>
       <section class="dw-sec" id="dwReenvio" hidden>
         <h3>Reenviar la propuesta</h3>
         <label class="f" for="rvAsunto">Asunto</label><input class="input" id="rvAsunto">
@@ -318,7 +333,20 @@
   </div>
 </div>
 
+<div class="modal" id="modalSubir" hidden role="dialog" aria-modal="true" aria-labelledby="suTitulo">
+  <div class="modal-card">
+    <div class="modal-h"><h2 id="suTitulo">Subir una propuesta en PDF</h2><button class="icon-x" id="suCerrar" type="button" aria-label="Cerrar">×</button></div>
+    <p class="hint">Sube la propuesta ya hecha (Maroa, DragoPlus…). La IA lee el PDF, saca el cliente, el importe y el email, redacta el correo y la deja lista para enviar por GHL con seguimiento.</p>
+    <label class="drop su-drop" id="suDrop" for="suFile">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5M12 18v-6M9.5 14.5 12 12l2.5 2.5"/></svg>
+      <b>Arrastra aquí el PDF</b><span>o pulsa para elegirlo · hasta 30 MB</span>
+      <input type="file" id="suFile" accept="application/pdf,.pdf" hidden>
+    </label>
+    <p class="su-estado" id="suEstado" aria-live="polite"></p>
+  </div>
+</div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script src="/assets/app.js?v=4" defer></script>
+<script src="/assets/app.js?v=5" defer></script>
 </body>
 </html>
