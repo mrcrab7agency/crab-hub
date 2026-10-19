@@ -24,12 +24,17 @@ export default proteger(async (req, res) => {
   for (const k of ['pipelineId', 'stageId', 'emailFrom', 'cco']) if (k in b) nuevo[k] = String(b[k] || '').trim();
   if (!nuevo.token || !nuevo.locationId) return json(res, 400, { error: 'Faltan la llave de GHL y el ID de la subcuenta' });
   if (b.token || b.locationId) {
+    // Se comprueba con los embudos (permiso de oportunidades, que ya pide la integración);
+    // el nombre de la subcuenta es opcional porque necesita además el permiso de ubicaciones.
     try {
-      const d = await ghl(nuevo, 'GET', `/locations/${encodeURIComponent(nuevo.locationId)}`);
-      nuevo.nombreCuenta = d.location?.name || '';
+      await embudos(nuevo);
     } catch (e) {
-      return json(res, 400, { error: 'GHL no acepta esa llave o ese ID de subcuenta (' + e.message + '). Revisa que la integración tenga los permisos marcados.' });
+      try { await ghl(nuevo, 'GET', `/contacts/?locationId=${encodeURIComponent(nuevo.locationId)}&limit=1`); }
+      catch (e2) {
+        return json(res, 400, { error: 'GHL no acepta esa llave o ese ID de subcuenta (' + (e2.message || e.message) + '). Revisa que la integración sea de la subcuenta Mr Crab 7 y tenga los permisos de contactos, conversaciones, oportunidades y medios.' });
+      }
     }
+    try { const d = await ghl(nuevo, 'GET', `/locations/${encodeURIComponent(nuevo.locationId)}`); nuevo.nombreCuenta = d.location?.name || ''; } catch {}
   }
   await guardar('ghl', nuevo);
   let lista = [];
