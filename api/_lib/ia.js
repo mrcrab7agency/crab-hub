@@ -1,15 +1,17 @@
 // IA vía Vercel AI Gateway (compatible con la API de OpenAI).
 // En Vercel se autentica sola con el token OIDC del proyecto; si existe AI_GATEWAY_API_KEY, se usa esa.
 import { env } from './core.js';
+import { getVercelOidcToken } from '@vercel/functions/oidc';
 
 const URL_GW = 'https://ai-gateway.vercel.sh/v1/chat/completions';
 
-function token() {
-  return env('AI_GATEWAY_API_KEY') || env('VERCEL_OIDC_TOKEN');
+async function token() {
+  if (env('AI_GATEWAY_API_KEY')) return env('AI_GATEWAY_API_KEY');
+  try { return await getVercelOidcToken(); } catch { return env('VERCEL_OIDC_TOKEN'); }
 }
 
 export async function preguntar({ modelo, sistema, usuario, maxTokens = 2500, temperatura = 0.3 }) {
-  const t = token();
+  const t = await token();
   if (!t) throw new Error('La IA no está configurada en Vercel (AI Gateway).');
   const r = await fetch(URL_GW, {
     method: 'POST',

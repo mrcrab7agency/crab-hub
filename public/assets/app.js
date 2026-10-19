@@ -107,7 +107,7 @@
       const d = await api('/api/buscar', { web: estado.web, nombre: estado.cliente, cif: estado.cif });
       const ia = d.ia || {};
       const poner = (id, v) => { if (v && !$('#' + id).value.trim()) $('#' + id).value = v; };
-      poner('cliente', ia.nombre || d.nombre || (d.titulo || '').split(/[|\-–·]/)[0].trim());
+      poner('cliente', ia.nombre || (d.titulo || '').split(/[|\-–·]/)[0].trim() || d.nombre);
       poner('web', d.web);
       poner('razon', ia.razon || d.razon);
       poner('cif', (ia.cif || d.cif || '').replace(/[-\s]/g, ''));
@@ -116,7 +116,7 @@
       leerCampos();
       estado.sector = ia.sector || ''; estado.tamano = ia.tamano || ''; estado.puntos = ia.puntos_clave || [];
       estado.direccion = ia.direccion || d.direccion || '';
-      if (/^#[0-9a-f]{6}$/i.test(d.color || '')) estado.acento = d.color;
+      if (/^#[0-9a-f]{6}$/i.test(d.color || '') && luz(d.color) < 0.75 && luz(d.color) > 0.08) estado.acento = d.color;
       estado.logos = [...new Set([...(estado.logos || []).filter((x) => x.startsWith('data:')), ...(d.logos || [])])];
       if (!estado.logo && estado.logos.length) estado.logo = estado.logos[0];
       if (!estado.ref) estado.ref = refDe(estado.cliente);
@@ -126,6 +126,7 @@
     } catch (e) { toast(e.message, true); $('#estadoBuscar').textContent = ''; }
     finally { cargando(btn, false); }
   });
+  function luz(h) { const n = parseInt(h.slice(1), 16); return (0.2126 * (n >> 16) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255; }
   function refDe(nombre) {
     const l = (nombre || 'CLI').normalize('NFD').replace(/[^A-Za-z]/g, '').toUpperCase();
     return `MC7-${(l.slice(0, 3) || 'CLI').padEnd(3, 'X')}-${new Date().getFullYear()}-001`;
