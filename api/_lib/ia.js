@@ -5,7 +5,7 @@ import { getVercelOidcToken } from '@vercel/functions/oidc';
 
 const URL_GW = 'https://ai-gateway.vercel.sh/v1/chat/completions';
 
-async function token() {
+export async function token() {
   if (env('AI_GATEWAY_API_KEY')) return env('AI_GATEWAY_API_KEY');
   try { return await getVercelOidcToken(); } catch { return env('VERCEL_OIDC_TOKEN'); }
 }
