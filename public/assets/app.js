@@ -107,7 +107,7 @@
       const d = await api('/api/buscar', { web: estado.web, nombre: estado.cliente, cif: estado.cif });
       const ia = d.ia || {};
       const poner = (id, v) => { if (v && !$('#' + id).value.trim()) $('#' + id).value = v; };
-      poner('cliente', ia.nombre || (d.titulo || '').split(/[|\-–·]/)[0].trim() || d.nombre);
+      poner('cliente', ia.nombre || (d.titulo || '').replace(/^[^\p{L}\p{N}]+/u, '').split(/[|\-–·]/)[0].trim() || d.nombre);
       poner('web', d.web);
       poner('razon', ia.razon || d.razon);
       poner('cif', (ia.cif || d.cif || '').replace(/[-\s]/g, ''));
