@@ -71,7 +71,7 @@
     $('#logoFondo').checked = !!estado.logoFondo;
     $('#logoAlto').value = estado.logoAlto || 56;
     $('#acento').value = estado.acento || '#1677ff';
-    pintarLogo(); pintarCandidatos(); pintarEmpleados(); pintarOtros(); pintarRequisitos(); resumen();
+    pintarLogo(); pintarCandidatos(); pintarEmpleados(); pintarOtros(); pintarRequisitos(); if (typeof pintarHolded === 'function') pintarHolded(); resumen();
   }
 
   // ---------- logo ----------
@@ -345,7 +345,7 @@
     const aj = location.hash === '#ajustes';
     $('#propuestas').hidden = aj; $('#ajustes').hidden = !aj;
     $('#navPropuestas').classList.toggle('on', !aj); $('#navAjustes').classList.toggle('on', aj);
-    if (aj) cargarAjustes();
+    if (aj) { cargarAjustes(); estadoHolded(); }
   }
   window.addEventListener('hashchange', vista);
 
@@ -451,6 +451,51 @@
       $('#academiaOk').innerHTML = `<b>Alta en la Academia · código ${esc(d.codigo)}</b><span>${d.pasos.map(esc).join(' · ')}</span>${enlace ? `<a href="${enlace}" target="_blank" rel="noopener">Ver el email en GHL ↗</a>` : ''}`;
       $('#academiaOk').hidden = false; toast('Bienvenida enviada a ' + email);
     } catch (e) { toast(e.message, true); } finally { cargando(b, false); }
+  });
+
+  // ---------- Holded (cliente y facturas en borrador) ----------
+  function pintarHolded() {
+    const h = estado.holded || {};
+    const partes = [];
+    if (h.contactId) partes.push('Cliente en Holded ✓');
+    if (h.firma) partes.push(`Factura firma en borrador · ${eur(h.firma.importe)} + IGIC`);
+    if (h.final) partes.push(`Factura final en borrador · ${eur(h.final.importe)} + IGIC`);
+    $('#hdEstado').className = 'hb-estado';
+    $('#hdEstado').innerHTML = partes.length ? partes.map((x) => `<b>${esc(x)}</b>`).join('<br>') + '<br><a href="https://app.holded.com/sales/revenue" target="_blank" rel="noopener">Abrir ventas en Holded ↗</a>' : 'Las facturas se crean en borrador: las numeras y emites tú en Holded.';
+  }
+  const datosHolded = () => { leerCampos(); return { cliente: estado.cliente, razon: estado.razon, cif: estado.cif, email: ($('#email').value || estado.email || '').trim(), direccion: estado.direccion, ref: estado.ref, empleados: estado.empleados.map((e) => ({ nombre: e.nombre })) }; };
+  const totalPropuesta = () => { const pf = $('#precioFinal').value; return pf === '' ? Math.round(estado.empleados.reduce((a, e) => a + 1000 * e.coef, 0)) : Number(pf); };
+  async function accionHolded(btn, op, tramo) {
+    const p = datosHolded();
+    if (!p.razon && !p.cliente) return toast('Falta el cliente', true);
+    if (op === 'factura') {
+      if (!estado.empleados.length) return toast('La propuesta no tiene empleados', true);
+      if (estado.holded?.[tramo] && !confirm('Ya creaste esa factura en borrador. ¿Crear otra igualmente?')) return;
+      if (!p.cif && !confirm('El cliente no tiene CIF. ¿Crear la factura igualmente?')) return;
+    }
+    cargando(btn, true, 'Holded…');
+    try {
+      const d = await api('/api/holded', { op, tramo, total: totalPropuesta(), propuesta: p });
+      estado.holded = { ...(estado.holded || {}), contactId: d.contactId };
+      if (op === 'factura') estado.holded[d.tramo] = { docId: d.docId, importe: d.importe, fecha: new Date().toISOString() };
+      guardar(); pintarHolded();
+      toast(op === 'cliente' ? (d.nuevo ? 'Cliente creado en Holded' : 'El cliente ya existía en Holded') : `Factura en borrador creada · ${eur(d.importe)} + IGIC${d.igic ? '' : ' (revisa el impuesto en Holded)'}`);
+    } catch (e) { $('#hdEstado').className = 'hb-estado bad'; $('#hdEstado').textContent = e.message; toast(e.message, true); }
+    finally { cargando(btn, false); }
+  }
+  $('#hdCliente').addEventListener('click', () => accionHolded($('#hdCliente'), 'cliente'));
+  $('#hdFirma').addEventListener('click', () => accionHolded($('#hdFirma'), 'factura', 'firma'));
+  $('#hdFinal').addEventListener('click', () => accionHolded($('#hdFinal'), 'factura', 'final'));
+  async function estadoHolded() {
+    try { const d = await api('/api/holded', { op: 'estado' }); $('#estadoHd').className = 'estado-ghl' + (d.conectado ? ' ok' : ''); $('#estadoHd').textContent = d.conectado ? `Conectado a Holded · llave ${d.llave}` : 'Sin conectar'; $('#hdGuardar').textContent = d.conectado ? 'Cambiar API key' : 'Conectar Holded'; }
+    catch { $('#estadoHd').textContent = 'No se pudo comprobar la conexión.'; }
+  }
+  $('#hdGuardar').addEventListener('click', async () => {
+    const key = $('#hdKey').value.trim();
+    if (!key) return toast('Pega la API key de Holded', true);
+    const b = $('#hdGuardar'); cargando(b, true, 'Comprobando…');
+    try { await api('/api/holded', { op: 'conectar', key }); $('#hdKey').value = ''; await estadoHolded(); toast('Holded conectado'); }
+    catch (e) { toast(e.message, true); } finally { cargando(b, false); }
   });
 
   // ---------- inicio ----------
