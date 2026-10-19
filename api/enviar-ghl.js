@@ -64,5 +64,5 @@ export default proteger(async (req, res) => {
     } catch (e) { pasos.push('Oportunidad no creada: ' + e.message); }
   }
 
-  json(res, 200, { ok: true, pasos, contactId, conversationId: envio.conversationId, messageId: envio.messageId, oportunidad, locationId: cfg.locationId });
+  json(res, 200, { ok: true, pasos, contactId, conversationId: envio.conversationId, messageId: envio.messageId, oportunidad, locationId: cfg.locationId, pdfUrl: url });
 });
