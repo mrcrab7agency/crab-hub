@@ -36,12 +36,20 @@
   function mostrarApp() { $('#login').hidden = true; $('#app').hidden = false; }
   $('#loginForm').addEventListener('submit', async (e) => {
     e.preventDefault(); $('#loginErr').textContent = '';
+    const paso2 = !$('#dosfa').hidden;
+    if (paso2 && $('#codigo').value.replace(/\D/g, '').length !== 6) { $('#loginErr').textContent = 'Escribe los 6 dígitos de tu app de verificación'; return; }
     try {
-      const r = await fetch('/api/auth?a=login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: $('#pw').value }) });
+      const r = await fetch('/api/auth?a=login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: $('#pw').value, codigo: paso2 ? $('#codigo').value : '' }) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
-      $('#pw').value = ''; mostrarApp();
-    } catch (err) { $('#loginErr').textContent = err.message || 'No se pudo entrar'; }
+      if (d.need2fa) {
+        $('#dosfa').hidden = false; $('#pw').readOnly = true;
+        if (d.qr) { $('#qrImg').innerHTML = d.qr; $('#qr').hidden = false; }
+        $('#codigo').focus(); return;
+      }
+      $('#pw').value = ''; $('#codigo').value = ''; $('#pw').readOnly = false; $('#dosfa').hidden = true; $('#qr').hidden = true; $('#qrImg').innerHTML = '';
+      mostrarApp();
+    } catch (err) { $('#loginErr').textContent = err.message || 'No se pudo entrar'; if (paso2) $('#codigo').select(); }
   });
   $('#salir').addEventListener('click', async () => { await fetch('/api/auth?a=logout', { method: 'POST' }); mostrarLogin(); });
 

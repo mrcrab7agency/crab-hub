@@ -32,6 +32,11 @@
       <p>Usa la contraseña de siempre del equipo.</p>
       <label class="f" for="pw">Contraseña</label>
       <input class="input" id="pw" type="password" autocomplete="current-password" required>
+      <div class="dosfa" id="dosfa" hidden>
+        <div class="qr" id="qr" hidden><p>Escanea este código con Google Authenticator, Authy o la app de claves de tu iPhone. Solo se muestra durante el alta.</p><div id="qrImg"></div></div>
+        <label class="f" for="codigo">Código de verificación</label>
+        <input class="input codigo" id="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+      </div>
       <button class="btn primary block" type="submit">Entrar</button>
       <div class="login-err" id="loginErr" role="alert"></div>
     </form>

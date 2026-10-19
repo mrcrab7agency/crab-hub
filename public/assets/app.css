@@ -166,3 +166,5 @@ textarea.input{resize:vertical}
   .head h1{font-size:22px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+.dosfa{display:grid;gap:8px}.qr{background:var(--card-2);border-radius:8px;padding:12px;display:grid;gap:8px;justify-items:center;text-align:center}.qr p{margin:0;font-size:13px;color:var(--muted)}.qr svg{width:180px;height:180px;background:#fff;border-radius:6px}.input.codigo{font-size:22px;letter-spacing:.35em;text-align:center;font-variant-numeric:tabular-nums}

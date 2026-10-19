@@ -2,10 +2,13 @@
   "name": "crab-hub",
   "private": true,
   "type": "module",
-  "engines": { "node": "22.x" },
+  "engines": {
+    "node": "22.x"
+  },
   "dependencies": {
     "@sparticuz/chromium": "^153.0.0",
     "@vercel/functions": "^3.1.0",
-    "puppeteer-core": "^25.0.0"
+    "puppeteer-core": "^25.0.0",
+    "qrcode": "^1.5.4"
   }
 }
