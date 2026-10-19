@@ -27,10 +27,36 @@ export async function preguntar({ modelo, sistema, usuario, maxTokens = 2500, te
   const d = await r.json().catch(() => ({}));
   if (!r.ok) {
     const m = d?.error?.message || '';
-    if (/credit card/i.test(m)) throw new Error('la IA se activa al añadir una tarjeta en Vercel (AI Gateway, con crédito gratis mensual).');
-    throw new Error(m || `La IA respondió ${r.status}`);
+    throw new Error(errorIA(m, r.status));
   }
   return d.choices?.[0]?.message?.content || '';
+}
+
+function errorIA(m, status) {
+  if (/credit card|credit|insufficient|balance|quota/i.test(m))
+    return 'falta saldo en Vercel AI Gateway (recarga de crédito en vercel.com > AI Gateway).';
+  return m || `La IA respondió ${status}`;
+}
+
+// Claude con búsqueda web (API de mensajes de Anthropic a través de AI Gateway).
+export async function buscarConClaude({ modelo = 'anthropic/claude-haiku-5.5', sistema, usuario, maxTokens = 2000, maxBusquedas = 4 }) {
+  const t = await token();
+  if (!t) throw new Error('La IA no está configurada en Vercel (AI Gateway).');
+  const r = await fetch('https://ai-gateway.vercel.sh/v1/messages', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${t}`, 'x-api-key': t, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: modelo,
+      max_tokens: maxTokens,
+      system: sistema,
+      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: maxBusquedas }],
+      messages: [{ role: 'user', content: usuario }],
+    }),
+    signal: AbortSignal.timeout(58000),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(errorIA(d?.error?.message || '', r.status));
+  return (d.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
 }
 
 // Extrae el primer objeto JSON de una respuesta de texto.
