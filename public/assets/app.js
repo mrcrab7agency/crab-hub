@@ -12,7 +12,7 @@
   let ultimoPdf = null;
 
   function nuevoEstado() {
-    return { id: 'p' + Date.now(), empleados: [], otros: [], logo: '', logos: [], logoFondo: false, logoAlto: 56, acento: '#1677ff', plan: 'autonomos', validezDias: 15 };
+    return { id: 'p' + Date.now(), empleados: [], otros: [], logo: '', logos: [], logoFondo: false, logoAlto: 56, acento: '#1677ff', plan: 'autonomos', validezDias: 15, requisitos: [] };
   }
 
   // ---------- utilidades ----------
@@ -71,7 +71,7 @@
     $('#logoFondo').checked = !!estado.logoFondo;
     $('#logoAlto').value = estado.logoAlto || 56;
     $('#acento').value = estado.acento || '#1677ff';
-    pintarLogo(); pintarCandidatos(); pintarEmpleados(); pintarOtros(); resumen();
+    pintarLogo(); pintarCandidatos(); pintarEmpleados(); pintarOtros(); pintarRequisitos(); resumen();
   }
 
   // ---------- logo ----------
@@ -185,7 +185,7 @@
     if (estado.empleados.length && !confirmarReemplazo()) return;
     const btn = $('#btnSugerir'); cargando(btn, true, 'Pensando…'); $('#estadoSugerir').textContent = 'La IA está armando la plantilla con el criterio de precios';
     try {
-      const d = await api('/api/sugerir', { cliente: estado.cliente, actividad: estado.actividad, sector: estado.sector, tamano: estado.tamano, puntos: estado.puntos, notas: estado.notas, num: estado.num, objetivo: estado.objetivo });
+      const d = await api('/api/sugerir', { cliente: estado.cliente, actividad: estado.actividad, sector: estado.sector, tamano: estado.tamano, puntos: estado.puntos, notas: estado.notas, num: estado.num, objetivo: estado.objetivo, requisitos: (estado.requisitos || []).filter((r) => r.resumen) });
       estado.empleados = d.empleados || [];
       if (d.titular) { estado.titular = d.titular; $('#titular').value = d.titular; }
       if (d.intro) { estado.intro = d.intro; $('#intro').value = d.intro; }
@@ -201,6 +201,55 @@
     b.dataset.confirmar = '1'; toast('Ya hay empleados. Pulsa otra vez para sustituirlos por la propuesta de la IA.');
     setTimeout(() => (b.dataset.confirmar = ''), 5000); return false;
   }
+
+  // ---------- requisitos del cliente (audios, PDF, Word, notas) ----------
+  const TROZO = 3 * 1024 * 1024;
+  const ICONO = { audio: 'AUD', pdf: 'PDF', docx: 'DOC', texto: 'TXT' };
+  const tipoArchivo = (f) => /^audio\//.test(f.type) || /\.(mp3|m4a|wav|ogg|oga|opus|aac|flac|webm|amr|3gp)$/i.test(f.name) ? 'audio' : /\.pdf$/i.test(f.name) ? 'pdf' : /\.docx$/i.test(f.name) ? 'docx' : /\.(txt|md|csv)$/i.test(f.name) ? 'texto' : '';
+  function pintarRequisitos() {
+    const ul = $('#reqLista'); ul.innerHTML = '';
+    (estado.requisitos || []).forEach((r, i) => {
+      const li = document.createElement('li');
+      const st = r.error ? `<span class="rq-st bad">${esc(r.error)}</span>` : r.procesando ? `<span class="rq-st"><span class="spin"></span> ${r.tipo === 'audio' ? 'Escuchando…' : 'Leyendo…'}</span>` : '<span class="rq-st">Listo</span>';
+      li.innerHTML = `<div class="rq-top"><span class="rq-ico ${r.tipo}">${ICONO[r.tipo] || 'DOC'}</span><span class="rq-n" title="${esc(r.nombre)}">${esc(r.nombre)}</span>${st}<button type="button" aria-label="Quitar">×</button></div>${r.resumen ? `<details><summary>Ver lo que ha entendido la IA</summary><pre>${esc(r.resumen)}</pre></details>` : ''}`;
+      li.querySelector('button').onclick = () => { estado.requisitos.splice(i, 1); pintarRequisitos(); guardar(); };
+      ul.append(li);
+    });
+  }
+  const aB64 = (blob) => new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1] || ''); r.onerror = ko; r.readAsDataURL(blob); });
+  async function subirRequisito(f) {
+    const tipo = tipoArchivo(f);
+    if (!tipo) return toast(`${f.name}: formato no admitido (audio, PDF, Word o texto)`, true);
+    if (f.size > 40 * 1024 * 1024) return toast(`${f.name} supera 40 MB`, true);
+    estado.requisitos = estado.requisitos || [];
+    const item = { nombre: f.name, tipo, procesando: true };
+    estado.requisitos.push(item); pintarRequisitos();
+    try {
+      const id = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)).replace(/[^a-z0-9-]/gi, '');
+      const partes = Math.max(1, Math.ceil(f.size / TROZO));
+      for (let n = 0; n < partes; n++) await api('/api/requisitos', { op: 'trozo', id, n, datos: await aB64(f.slice(n * TROZO, (n + 1) * TROZO)) });
+      const d = await api('/api/requisitos', { op: 'procesar', id, partes, nombre: f.name, mime: f.type || '' });
+      Object.assign(item, { resumen: d.resumen, tipo: d.tipo, procesando: false, fecha: new Date().toISOString() });
+    } catch (e) { Object.assign(item, { procesando: false, error: e.message || 'No se pudo procesar' }); }
+    pintarRequisitos(); guardar();
+  }
+  const drop = $('#drop');
+  drop.addEventListener('click', () => $('#reqFile').click());
+  drop.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#reqFile').click(); } });
+  $('#reqFile').addEventListener('change', (e) => { [...e.target.files].forEach(subirRequisito); e.target.value = ''; });
+  ['dragenter', 'dragover'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('on'); }));
+  ['dragleave', 'drop'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('on'); }));
+  drop.addEventListener('drop', (e) => [...(e.dataTransfer?.files || [])].forEach(subirRequisito));
+  $('#reqAdd').addEventListener('click', async () => {
+    const texto = $('#reqTexto').value.trim();
+    if (texto.length < 5) return toast('Escribe primero los requisitos', true);
+    estado.requisitos = estado.requisitos || [];
+    const item = { nombre: 'Notas: ' + texto.slice(0, 50) + (texto.length > 50 ? '…' : ''), tipo: 'texto', procesando: true };
+    estado.requisitos.push(item); pintarRequisitos(); $('#reqTexto').value = '';
+    try { const d = await api('/api/requisitos', { op: 'texto', texto }); Object.assign(item, { resumen: d.resumen, procesando: false }); }
+    catch (e) { Object.assign(item, { procesando: false, error: e.message }); }
+    pintarRequisitos(); guardar();
+  });
 
   // ---------- otras piezas ----------
   function pintarOtros() {

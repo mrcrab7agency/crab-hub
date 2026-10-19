@@ -186,3 +186,22 @@ textarea.input{resize:vertical}
 .modal-acc{display:flex;justify-content:flex-end;gap:8px}
 @media (max-width:860px){.nav-ajustes{padding:7px 9px;font-size:13px}}
 #ghlOpciones:not([hidden]){display:grid;gap:12px}
+
+/* Requisitos del cliente */
+.req{margin:14px 0 4px;display:flex;flex-direction:column;gap:8px}
+.req-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}.req-h .f{margin:0}
+.drop{display:flex;align-items:center;gap:14px;border:1.5px dashed var(--line-3);border-radius:10px;padding:16px 18px;background:#fafbfc;cursor:pointer;transition:border-color .15s,background .15s}
+.drop:hover,.drop:focus-visible,.drop.on{border-color:var(--accent);background:#f2f7ff;outline:none}
+.drop svg{width:28px;height:28px;flex:none;fill:none;stroke:var(--accent);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.drop b{display:block;font-size:14.5px}.drop span{color:var(--muted);font-size:13px}
+.req-texto{display:flex;gap:8px;align-items:flex-start}.req-texto textarea{flex:1;resize:vertical}
+.req-lista{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.req-lista li{border:1px solid var(--line);border-radius:8px;background:#fff;padding:9px 12px}
+.req-lista .rq-top{display:flex;align-items:center;gap:9px}
+.req-lista .rq-ico{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;font-size:11px;font-weight:700;flex:none;background:#eef2f8;color:#334}
+.req-lista .rq-ico.audio{background:#fff1e6;color:#c2410c}.req-lista .rq-ico.pdf{background:#fdecec;color:#b42318}.req-lista .rq-ico.docx{background:#e8f0fe;color:#1d4ed8}
+.req-lista .rq-n{flex:1;min-width:0;font-weight:600;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.req-lista .rq-st{color:var(--muted);font-size:12.5px;white-space:nowrap}.req-lista .rq-st.bad{color:#b42318}
+.req-lista button{border:0;background:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1;padding:2px 4px}
+.req-lista details{margin-top:6px}.req-lista summary{cursor:pointer;color:var(--accent);font-size:12.5px}
+.req-lista pre{white-space:pre-wrap;font:inherit;font-size:13px;color:var(--ink-2);margin:6px 0 0;max-height:260px;overflow:auto}
