@@ -62,7 +62,7 @@ export function resumenDe(reg) {
     id: reg.id, cliente: p.cliente || '', razon: p.razon || '', ref: p.ref || '', email: ult?.para || p.email || '', logo: /^https?:/.test(p.logo || '') ? p.logo : '',
     empleados: (p.empleados || []).length, total: totalDe(p), estado: estadoDe(reg), envios: envios.length,
     ultimoEnvio: ult?.fecha || null, abierto: envios.map((e) => e.abierto).filter(Boolean).sort().pop() || null, estadoEmail: ult?.estadoEmail || '', respuestas: (c.respuestas || []).length,
-    noLeidas: (c.respuestas || []).filter((r) => !r.leida).length, academia: !!p.academia, holded: !!(p.holded?.firma || p.holded?.final),
+    noLeidas: (c.respuestas || []).filter((r) => !r.leida).length, academia: !!p.academia, externo: !!p.externo, holded: !!(p.holded?.firma || p.holded?.final),
     creado: reg.creado, actividad: fechas[fechas.length - 1] || reg.creado,
   };
 }

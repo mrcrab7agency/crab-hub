@@ -48,12 +48,12 @@ async function desdeAudio(buf, mime, nombre) {
 }
 
 // PDF o texto: Claude Haiku lee el documento.
-async function conClaude(contenido) {
+export async function conClaude(contenido, maxTokens = 1500, modelo = 'anthropic/claude-haiku-5.5') {
   const t = await autorizado();
   const r = await fetch(`${GW}/messages`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${t}`, 'x-api-key': t, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: 'anthropic/claude-haiku-5.5', max_tokens: 1500, messages: [{ role: 'user', content: contenido }] }),
+    body: JSON.stringify({ model: modelo, max_tokens: maxTokens, messages: [{ role: 'user', content: contenido }] }),
     signal: AbortSignal.timeout(120000),
   });
   const d = await r.json().catch(() => ({}));
