@@ -4,7 +4,29 @@ import { proteger, cuerpo, json } from './_lib/core.js';
 import { leer } from './_lib/almacen.js';
 import { ghl } from './_lib/ghl.js';
 import { FIRMA_HTML } from './_lib/firma.js';
-import { preguntar } from './_lib/ia.js';
+import { preguntar, sacarJSON } from './_lib/ia.js';
+import { put, get, list, del } from '@vercel/blob';
+import { conClaude } from './_lib/requisitos-ia.js';
+import { enviarPropuestaGhl } from './_lib/envio-ghl.js';
+
+export const config = { api: { bodyParser: { sizeLimit: '4.4mb' } } };
+const okSubida = (s) => /^[a-z0-9-]{8,64}$/i.test(String(s || ''));
+const rutaPdf = (id) => `crm-pdf/${id}.pdf`;
+async function leerPdf(id) {
+  const r = await get(rutaPdf(id), { access: 'private', useCache: false });
+  if (!r?.stream) throw new Error('No encuentro el PDF de esta propuesta');
+  return Buffer.from(await new Response(r.stream).arrayBuffer());
+}
+
+const PROMPT_IMPORTAR = `Te paso una propuesta comercial en PDF que Mr Crab 7 (Javi, La Buena IA) va a enviar a un cliente. Extrae los datos y redacta el email de envío.
+Devuelve SOLO un JSON con esta forma, sin texto alrededor:
+{"cliente":"nombre comercial del cliente","razon":"razón social si aparece","cif":"","email":"email del cliente si aparece","contacto":"nombre de la persona de contacto si aparece","telefono":"","web":"","ref":"referencia de la propuesta si aparece","total":0,"empleados":["nombre de cada puesto, servicio o partida principal"],"resumen":"2-3 frases con lo que se propone","asunto":"asunto del email","mensaje":"cuerpo del email"}
+Reglas:
+- total: importe total de la propuesta en euros, sin impuestos, como número (si hay varias opciones, la principal o recomendada). 0 si no hay.
+- Si un dato no aparece, déjalo vacío; no lo inventes. Nunca pongas como email del cliente uno de Mr Crab 7, FERAMA o mrcrab7.
+- El email lo firma Javi, en español de España, cercano y profesional, breve (4-7 frases): saluda por el nombre si lo hay, dice que adjunta la propuesta para el cliente, resume en una frase el valor principal, propone el siguiente paso (comentarla en una llamada o reunión) y se despide con "Un saludo," sin firma (se añade sola). Sin negritas ni listas.
+- Si la propuesta habla de empleados de inteligencia artificial, nunca los plantees como sustitución de personas ni ahorro de contrataciones: multiplican al equipo que ya existe.
+- Asunto claro, tipo "Propuesta de ... para <cliente>".`;
 import { idValido, leerRegistro, guardarRegistro, borrarRegistro, todosLosRegistros, estadoDe, resumenDe, totalDe } from './_lib/crm.js';
 
 const esc = (s = '') => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -101,6 +123,53 @@ export default proteger(async (req, res) => {
     return json(res, 200, { items, cambios, ghl: !!cfg, locationId: cfg?.locationId || '' });
   }
 
+
+  if (b.op === 'trozo') {
+    if (!okSubida(b.id) || !Number.isInteger(b.n) || b.n < 0 || b.n > 15 || !b.datos) return json(res, 400, { error: 'Trozo no válido' });
+    await put(`crm-subida/${b.id}/${String(b.n).padStart(3, '0')}`, Buffer.from(b.datos, 'base64'), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/octet-stream' });
+    return json(res, 200, { ok: true });
+  }
+
+  if (b.op === 'importar') {
+    if (!okSubida(b.id) || !Number.isInteger(b.partes) || b.partes < 1 || b.partes > 15) return json(res, 400, { error: 'Archivo no válido' });
+    const nombre = String(b.nombre || 'propuesta.pdf').replace(/[^\w.\- áéíóúñÁÉÍÓÚÑ()]/g, '').slice(0, 100) || 'propuesta.pdf';
+    let buf;
+    try {
+      const trozos = [];
+      for (let i = 0; i < b.partes; i++) {
+        const r = await get(`crm-subida/${b.id}/${String(i).padStart(3, '0')}`, { access: 'private', useCache: false });
+        if (!r?.stream) throw new Error('Falta una parte del archivo; vuelve a subirlo');
+        trozos.push(Buffer.from(await new Response(r.stream).arrayBuffer()));
+      }
+      buf = Buffer.concat(trozos);
+    } finally {
+      try { const l = await list({ prefix: `crm-subida/${b.id}/` }); if (l.blobs.length) await del(l.blobs.map((x) => x.url)); } catch {}
+    }
+    if (buf.subarray(0, 5).toString() !== '%PDF-') return json(res, 400, { error: 'El archivo no es un PDF' });
+    if (buf.length > 30 * 1024 * 1024) return json(res, 400, { error: 'El PDF supera 30 MB' });
+    const id = 'x' + b.id.replace(/-/g, '').slice(0, 30);
+    await put(rutaPdf(id), buf, { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/pdf' });
+    let d = {};
+    try {
+      const txt = await conClaude([{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: buf.toString('base64') } }, { type: 'text', text: PROMPT_IMPORTAR }], 2000, 'anthropic/claude-sonnet-5.5');
+      d = sacarJSON(txt);
+    } catch (e) { d = { aviso: 'La IA no pudo leer el PDF: ' + e.message }; }
+    const s = (v, n = 200) => String(v ?? '').trim().slice(0, n);
+    const email = s(d.email, 120).toLowerCase();
+    const p = {
+      id, externo: { nombre, bytes: buf.length, subido: new Date().toISOString() },
+      cliente: s(d.cliente) || nombre.replace(/\.pdf$/i, ''), razon: s(d.razon), cif: s(d.cif, 30),
+      email: /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) && !/mrcrab7|ferama/.test(email) ? email : '',
+      contactoNombre: s(d.contacto, 120), telefono: s(d.telefono, 40), web: s(d.web, 200), ref: s(d.ref, 60),
+      precioFinal: Number(d.total) > 0 ? Math.round(Number(d.total) * 100) / 100 : 0,
+      empleados: (Array.isArray(d.empleados) ? d.empleados : []).slice(0, 60).map((x) => ({ nombre: s(x, 120), coef: 0 })),
+      resumen: s(d.resumen, 1200), borrador: { asunto: s(d.asunto, 200), mensaje: s(d.mensaje, 5000) }, envios: [],
+    };
+    const reg = { id, creado: new Date().toISOString(), p, crm: { historial: [{ fecha: new Date().toISOString(), tipo: 'creada', texto: `PDF subido: ${nombre}` }] } };
+    await guardarRegistro(reg);
+    return json(res, 200, { ok: true, id, aviso: d.aviso || '' });
+  }
+
   if (b.op === 'guardar') {
     const p = b.p || {};
     if (!idValido(p.id)) return json(res, 400, { error: 'Propuesta sin identificador' });
@@ -121,6 +190,7 @@ export default proteger(async (req, res) => {
     // Los reenvíos hechos desde el seguimiento solo están en el servidor: se conservan
     for (const v of reg.p?.envios || []) if (v.reenvio && !p.envios.some((e) => e.messageId === v.messageId)) p.envios.push(v);
     p.envios.sort((x, y) => String(x.fecha).localeCompare(String(y.fecha)));
+    if (reg.p?.externo) return json(res, 200, { ok: true, ignorada: true });
     reg.p = limpiarP(p);
     reg.crm = reg.crm || {};
     if (p.envios.length > antes) (reg.crm.historial = reg.crm.historial || []).push({ fecha: p.envios[p.envios.length - 1].fecha, tipo: 'envio', texto: `Propuesta enviada a ${p.envios[p.envios.length - 1].para || ''}` });
@@ -139,6 +209,25 @@ export default proteger(async (req, res) => {
   if (b.op === 'detalle') {
     if (cfg && await refrescar(reg, cfg)) await guardarRegistro(reg);
     return json(res, 200, { reg: { ...reg, estado: estadoDe(reg), total: totalDe(p) }, locationId: cfg?.locationId || '' });
+  }
+
+
+  if (b.op === 'pdf') {
+    if (!p.externo) return json(res, 400, { error: 'Esta propuesta se genera desde el editor' });
+    const buf = await leerPdf(reg.id);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('X-Nombre-Archivo', encodeURIComponent(p.externo.nombre || 'propuesta.pdf'));
+    return res.status(200).send(buf);
+  }
+
+  if (b.op === 'datos') {
+    const s = (v, n = 200) => String(v ?? '').trim().slice(0, n);
+    for (const k of ['cliente', 'razon', 'email', 'contactoNombre', 'ref']) if (b[k] !== undefined) p[k] = s(b[k]);
+    if (b.total !== undefined) p.precioFinal = Math.max(0, Number(b.total) || 0);
+    if (b.asunto !== undefined || b.mensaje !== undefined) p.borrador = { asunto: s(b.asunto ?? p.borrador?.asunto), mensaje: s(b.mensaje ?? p.borrador?.mensaje, 5000) };
+    reg.p = p; await guardarRegistro(reg);
+    return json(res, 200, { ok: true });
   }
 
   if (b.op === 'leidas') {
@@ -160,7 +249,7 @@ export default proteger(async (req, res) => {
     await guardarRegistro(reg); return json(res, 200, { ok: true });
   }
 
-  if (b.op === 'borrar') { await borrarRegistro(b.id); return json(res, 200, { ok: true }); }
+  if (b.op === 'borrar') { await borrarRegistro(b.id); if (p.externo) { try { const l = await list({ prefix: rutaPdf(b.id) }); if (l.blobs.length) await del(l.blobs.map((x) => x.url)); } catch {} } return json(res, 200, { ok: true }); }
 
   if (b.op === 'ia-respuesta') {
     const ultResp = (reg.crm.respuestas || []).slice(-1)[0];
@@ -177,6 +266,24 @@ Historial de respuestas previas del cliente:\n${(reg.crm.respuestas || []).slice
   }
 
   if (!cfg) return json(res, 400, { error: 'Conecta primero GHL en Ajustes.' });
+
+  if (b.op === 'enviar') {
+    if (!p.externo) return json(res, 400, { error: 'Esta propuesta se envía desde el editor' });
+    const email = String(b.email || '').trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json(res, 400, { error: 'El email del cliente no es válido' });
+    if (!b.asunto || String(b.mensaje || '').trim().length < 5) return json(res, 400, { error: 'Falta el asunto o el texto del email' });
+    const pdf = await leerPdf(reg.id);
+    const r = await enviarPropuestaGhl(cfg, { email, contacto: b.contacto, empresa: p.razon || p.cliente, telefono: p.telefono, web: p.web, asunto: b.asunto, mensaje: b.mensaje, pdf, nombreArchivo: p.externo.nombre || 'propuesta.pdf', importe: totalDe(p) });
+    const fecha = new Date().toISOString();
+    p.email = email; if (b.contacto) p.contactoNombre = String(b.contacto).slice(0, 120);
+    p.borrador = { asunto: String(b.asunto).slice(0, 200), mensaje: String(b.mensaje).slice(0, 5000) };
+    (p.envios = p.envios || []).push({ fecha, para: email, asunto: p.borrador.asunto, mensaje: p.borrador.mensaje, contactId: r.contactId, conversationId: r.conversationId, messageId: r.messageId, pdfUrl: r.pdfUrl });
+    reg.p = p;
+    reg.crm.historial.push({ fecha, tipo: 'envio', texto: `Propuesta enviada a ${email}` });
+    await guardarRegistro(reg);
+    return json(res, 200, { ok: true, pasos: r.pasos });
+  }
+
   if (!ult?.contactId) return json(res, 400, { error: 'Esta propuesta aún no se ha enviado por GHL' });
 
   if (b.op === 'responder') {
