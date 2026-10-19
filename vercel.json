@@ -5,6 +5,7 @@
     "api/pdf.js": { "memory": 2048, "maxDuration": 60, "includeFiles": "api/_marca/**" },
     "api/buscar.js": { "maxDuration": 60 },
     "api/sugerir.js": { "maxDuration": 90 },
+    "api/crm.js": { "maxDuration": 60 },
     "api/requisitos.js": { "maxDuration": 300, "memory": 2048 }
   },
   "headers": [
