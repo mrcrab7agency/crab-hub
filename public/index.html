@@ -117,6 +117,16 @@
             <div><label class="f" for="num">Nº de empleados</label><input class="input" id="num" type="number" min="1" max="50" placeholder="10"></div>
             <div><label class="f" for="notas">Indicaciones</label><input class="input" id="notas" placeholder="Prioridad: leads y financiación"></div>
           </div>
+          <div class="req">
+            <div class="req-h"><label class="f" for="reqFile">Requisitos del cliente</label><span class="hint">La IA escucha y lee cada archivo y lo tiene en cuenta al proponer la plantilla.</span></div>
+            <div class="drop" id="drop" tabindex="0" role="button" aria-label="Subir audios o documentos del cliente">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+              <div><b>Arrastra aquí audios, PDF o Word</b><span>Reuniones grabadas, notas de voz de WhatsApp, briefings, pliegos… o haz clic para elegirlos (hasta 40 MB por archivo)</span></div>
+              <input type="file" id="reqFile" multiple accept="audio/*,.mp3,.m4a,.wav,.ogg,.opus,.aac,.amr,.pdf,.docx,.txt,.md" hidden>
+            </div>
+            <div class="req-texto"><textarea class="input" id="reqTexto" rows="2" placeholder="O escribe o pega aquí lo que te ha pedido el cliente"></textarea><button class="btn sm" id="reqAdd" type="button">Añadir</button></div>
+            <ul class="req-lista" id="reqLista"></ul>
+          </div>
           <div class="row-actions">
             <button class="btn primary" id="btnSugerir" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></svg>Proponer empleados con IA</button>
             <span class="hint" id="estadoSugerir"></span>
