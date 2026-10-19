@@ -625,11 +625,12 @@
     if (p.academia) tl.push({ fecha: p.academia.fecha, tipo: 'ganada', texto: 'Alta en la Academia · código ' + (p.academia.codigo || '') });
     if (p.holded?.firma) tl.push({ fecha: p.holded.firma.fecha, tipo: 'nota', texto: 'Factura de firma en Holded (borrador) · ' + eur(p.holded.firma.importe) });
     tl.sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
-    $('#dwHistorial').innerHTML = tl.map((h) => `<li class="${esc(h.tipo)}">${esc(h.texto)}<small>${fechaHora(h.fecha)}</small></li>`).join('') || '<li>Sin movimientos</li>';
+    const accionTl = (h) => (h.tipo === 'creada' ? 'editor' : ['envio', 'abierta'].includes(h.tipo) || h.tipo === 'ganada' ? 'pdf' : '');
+    $('#dwHistorial').innerHTML = tl.map((h) => { const a = accionTl(h); return `<li class="${esc(h.tipo)}${a ? ' link' : ''}"${a ? ` data-acc="${a}" tabindex="0" title="${a === 'editor' ? 'Abrir la propuesta en el editor' : 'Ver el PDF de la propuesta'}"` : ''}>${esc(h.texto)}${a ? `<span class="ir">${a === 'editor' ? 'Abrir ›' : 'Ver PDF ›'}</span>` : ''}<small>${fechaHora(h.fecha)}</small></li>`; }).join('') || '<li>Sin movimientos</li>';
   }
   $('#dwCerrar').addEventListener('click', cerrarDrawer);
   $('#crmDrawer').addEventListener('click', (e) => { if (e.target.id === 'crmDrawer') cerrarDrawer(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#crmDrawer').hidden) cerrarDrawer(); });
+  document.addEventListener('keydown', (e) => { if (e.key !== 'Escape') return; if (!$('#modalPdf').hidden) { $('#pvCerrar').click(); return; } if (!$('#crmDrawer').hidden) cerrarDrawer(); });
   const accionCrm = async (btn, datos, txt, ok) => {
     cargando(btn, true, txt);
     try { const d = await api('/api/crm', { id: crm.abierto.id, ...datos }); if (ok) toast(ok); return d; }
@@ -643,6 +644,31 @@
     pintarCampos(); $('#hallazgos').hidden = true; $('#visor').hidden = true; $('#pdfActions').hidden = true;
     cerrarDrawer(); location.hash = '#propuestas'; toast('Propuesta de ' + (p.cliente || '') + ' abierta en el editor');
   });
+  // Ver el PDF de la propuesta sin salir del seguimiento
+  let urlPdfCrm = null;
+  async function verPdfCrm() {
+    const p = crm.abierto?.p; if (!p) return;
+    const b = $('#dwPdf'); cargando(b, true, 'Generando PDF…');
+    try {
+      const local = todas().find((x) => x.id === p.id);
+      const datos = { ...nuevoEstado(), ...p, ...(local?.logo ? { logo: local.logo } : {}), logos: undefined, envios: undefined };
+      datos.para = datos.para || (datos.razon || datos.cliente) + (datos.cif ? ' · CIF ' + datos.cif : '');
+      const r = await api('/api/pdf', datos, true);
+      const nombre = r.headers.get('X-Nombre-Archivo') || 'propuesta.pdf';
+      if (urlPdfCrm) URL.revokeObjectURL(urlPdfCrm);
+      urlPdfCrm = URL.createObjectURL(await r.blob());
+      $('#pvFrame').src = urlPdfCrm; $('#pvBajar').href = urlPdfCrm; $('#pvBajar').download = nombre;
+      $('#pvTitulo').textContent = 'Propuesta · ' + (p.cliente || '');
+      $('#modalPdf').hidden = false;
+    } catch (e) { toast(e.message, true); } finally { cargando(b, false); }
+  }
+  $('#dwPdf').addEventListener('click', verPdfCrm);
+  const cerrarPdf = () => { $('#modalPdf').hidden = true; $('#pvFrame').src = 'about:blank'; };
+  $('#pvCerrar').addEventListener('click', cerrarPdf);
+  $('#modalPdf').addEventListener('click', (e) => { if (e.target.id === 'modalPdf') cerrarPdf(); });
+  const accionHistorial = (li) => { if (!li) return; if (li.dataset.acc === 'editor') $('#dwAbrir').click(); else if (li.dataset.acc === 'pdf') verPdfCrm(); };
+  $('#dwHistorial').addEventListener('click', (e) => accionHistorial(e.target.closest('li[data-acc]')));
+  $('#dwHistorial').addEventListener('keydown', (e) => { if (e.key === 'Enter') accionHistorial(e.target.closest('li[data-acc]')); });
   $('#dwGanada').addEventListener('click', async () => { if (await accionCrm($('#dwGanada'), { op: 'marcar', estado: 'ganada' }, 'Guardando…', 'Marcada como ganada')) recargarFicha(); });
   $('#dwPerdida').addEventListener('click', async () => {
     const motivo = prompt('¿Por qué se ha perdido? (opcional)'); if (motivo === null) return;

@@ -266,3 +266,11 @@ textarea.input{resize:vertical}
 .tl li small{display:block;color:var(--faint);font-size:11.5px}
 .tl .envio{--c:var(--accent)}.tl .abierta{--c:#B26A00}.tl .cliente{--c:#7A3EC8}.tl .respuesta{--c:var(--crab)}.tl .ganada{--c:var(--ok)}.tl .perdida{--c:var(--bad)}
 @media (max-width:860px){.crm-t th:nth-child(5),.crm-t td:nth-child(5),.crm-t th:nth-child(7),.crm-t td:nth-child(7){display:none}.head-actions{flex-wrap:wrap}}
+
+.tl li.link{cursor:pointer;border-radius:6px;padding:2px 6px;margin-left:-6px}
+.tl li.link::before{left:-14px}
+.tl li.link:hover{background:var(--accent-soft)}
+.tl li .ir{margin-left:8px;color:var(--accent);font-weight:600;font-size:12px}
+#modalPdf{z-index:9}
+.pdf-card{max-width:980px;height:92vh;grid-template-rows:auto 1fr}
+.pdf-card iframe{width:100%;height:100%;border:0;border-radius:8px;background:#525659}
