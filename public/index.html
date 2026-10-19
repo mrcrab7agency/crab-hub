@@ -183,6 +183,15 @@
             <div class="enviado" id="academiaOk" hidden></div>
             <p class="hint">Envío al cliente: por GHL (seguimiento de apertura). Contratos con firma: CertiMail.</p>
           </div>
+          <div class="holded-box" id="holdedBox">
+            <div class="hb-h"><span class="hb-logo">H</span><b>Facturación · Holded</b></div>
+            <div class="hb-btns">
+              <button class="btn sm" id="hdCliente" type="button">Crear cliente</button>
+              <button class="btn sm" id="hdFirma" type="button">Factura 50 % firma</button>
+              <button class="btn sm" id="hdFinal" type="button">Factura 50 % final</button>
+            </div>
+            <div class="hb-estado" id="hdEstado">Las facturas se crean en borrador: las numeras y emites tú en Holded.</div>
+          </div>
         </section>
       </aside>
     </div>
@@ -214,6 +223,14 @@
         </div>
         <div class="row-actions"><button class="btn" id="ghlGuardarOpc" type="button">Guardar opciones</button></div>
       </div>
+    </section>
+    <section class="card ajustes-card">
+      <div class="card-h"><span class="step hd">H</span><div><h2>Conexión con Holded</h2><p>Para crear el cliente y las facturas de cada propuesta directamente en Holded.</p></div></div>
+      <div class="estado-ghl" id="estadoHd">Comprobando…</div>
+      <div class="fields two">
+        <div><label class="f" for="hdKey">API key de Holded</label><input class="input" id="hdKey" type="password" autocomplete="off" placeholder="Pega aquí la API key"><p class="hint">Holded › Configuración › Desarrolladores › Nueva API key.</p></div>
+      </div>
+      <div class="row-actions"><button class="btn primary" id="hdGuardar" type="button">Conectar Holded</button><span class="hint">Se guarda cifrada en el servidor y no vuelve a mostrarse.</span></div>
     </section>
   </main>
 </div>
