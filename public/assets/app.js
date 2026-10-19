@@ -44,7 +44,7 @@
       if (!r.ok) throw new Error(d.error);
       if (d.need2fa) {
         $('#dosfa').hidden = false; $('#pw').readOnly = true;
-        if (d.qr) { $('#qrImg').innerHTML = d.qr; $('#qr').hidden = false; }
+        if (d.qr) { const im = new Image(); im.src = d.qr; im.alt = 'Código QR de alta del doble factor'; im.width = 180; im.height = 180; $('#qrImg').replaceChildren(im); $('#qr').hidden = false; }
         $('#codigo').focus(); return;
       }
       $('#pw').value = ''; $('#codigo').value = ''; $('#pw').readOnly = false; $('#dosfa').hidden = true; $('#qr').hidden = true; $('#qrImg').innerHTML = '';

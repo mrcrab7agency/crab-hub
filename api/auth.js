@@ -55,7 +55,7 @@ export default async (req, res) => {
       const resp = { need2fa: true };
       if (env('TOTP_SETUP') === '1') {
         const uri = `otpauth://totp/Crab%20Hub:Mr%20Crab%207?secret=${secreto}&issuer=Crab%20Hub&algorithm=SHA1&digits=6&period=30`;
-        resp.qr = await QRCode.toString(uri, { type: 'svg', margin: 1, width: 200 });
+        resp.qr = await QRCode.toDataURL(uri, { margin: 1, width: 360, color: { dark: '#000000', light: '#ffffff' } });
       }
       return json(res, 200, resp);
     }
