@@ -8,7 +8,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#FFFFFF">
 <link rel="icon" href="/assets/crab.png">
-<link rel="stylesheet" href="/assets/app.css?v=2">
+<link rel="stylesheet" href="/assets/app.css?v=3">
 </head>
 <body>
 
@@ -49,6 +49,7 @@
     <nav class="nav">
       <div class="nav-h">Ventas</div>
       <a href="#propuestas" class="on" aria-current="page" id="navPropuestas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg><span>Propuestas</span></a>
+      <a href="#seguimiento" id="navSeguimiento"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg><span>Seguimiento</span><i class="nb" id="navNoLeidas" hidden></i></a>
       <a href="https://certimail-mrcrab7.netlify.app/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><span>CertiMail</span><i class="ext" title="Se abre en su app actual">↗</i></a>
       <div class="nav-h">Clientes</div>
       <a href="https://inboxmrcrab.netlify.app/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H8l-4 4Z"/></svg><span>Inbox WhatsApp</span><i class="ext" title="Se abre en su app actual">↗</i></a>
@@ -204,6 +205,22 @@
     <footer class="pie"><a href="https://mrcrab7.com" target="_blank" rel="noopener">©🦀MrCrab7 IA❤️Canarias</a></footer>
   </main>
 
+  <main class="main" id="seguimiento" hidden>
+    <header class="head">
+      <div><p class="crumb">Ventas · Seguimiento</p><h1>Seguimiento de propuestas</h1></div>
+      <div class="head-actions">
+        <input class="input sm" id="crmBuscar" type="search" placeholder="Buscar cliente…" aria-label="Buscar cliente">
+        <button class="btn sm" id="crmRefrescar" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg>Actualizar estados</button>
+      </div>
+    </header>
+    <section class="kpis" id="crmKpis" aria-label="Resumen"></section>
+    <section class="card crm-card">
+      <div class="crm-tabs" id="crmTabs" role="tablist"></div>
+      <div class="tabla-wrap"><table class="crm-t"><thead><tr><th>Cliente</th><th>Estado</th><th class="r">Importe</th><th>Último envío</th><th>Apertura</th><th>Respuestas</th><th>Actividad</th></tr></thead><tbody id="crmFilas"></tbody></table></div>
+      <p class="hint center" id="crmVacio" hidden></p>
+    </section>
+  </main>
+
   <main class="main" id="ajustes" hidden>
     <header class="head"><div><p class="crumb">Crab Hub · Ajustes</p><h1>Ajustes</h1></div></header>
     <section class="card ajustes-card">
@@ -250,7 +267,50 @@
   </div>
 </div>
 
+<div class="drawer" id="crmDrawer" hidden role="dialog" aria-modal="true" aria-labelledby="dwTitulo">
+  <div class="drawer-card">
+    <div class="dw-h">
+      <img id="dwLogo" alt="" hidden>
+      <div class="dw-t"><h2 id="dwTitulo"></h2><p id="dwSub"></p></div>
+      <button class="icon-x" id="dwCerrar" type="button" aria-label="Cerrar">×</button>
+    </div>
+    <div class="dw-acc">
+      <button class="btn sm" id="dwAbrir" type="button">Abrir en el editor</button>
+      <button class="btn sm" id="dwReenviar" type="button">Reenviar</button>
+      <button class="btn sm ok" id="dwGanada" type="button">Ganada</button>
+      <button class="btn sm bad" id="dwPerdida" type="button">Perdida</button>
+      <button class="btn sm" id="dwReabrir" type="button" hidden>Reabrir</button>
+      <a class="btn sm ghost" id="dwGhl" target="_blank" rel="noopener" hidden>Ver en GHL ↗</a>
+      <button class="btn sm ghost" id="dwBorrar" type="button">Quitar</button>
+    </div>
+    <div class="dw-body">
+      <section class="dw-sec" id="dwReenvio" hidden>
+        <h3>Reenviar la propuesta</h3>
+        <label class="f" for="rvAsunto">Asunto</label><input class="input" id="rvAsunto">
+        <label class="f" for="rvTexto">Mensaje</label><textarea class="input" id="rvTexto" rows="7"></textarea>
+        <p class="hint" id="rvAdj"></p>
+        <div class="row-actions"><button class="btn" id="rvCancelar" type="button">Cancelar</button><button class="btn primary" id="rvEnviar" type="button">Reenviar</button></div>
+      </section>
+      <section class="dw-sec"><h3>Respuestas del cliente</h3><div id="dwRespuestas"></div></section>
+      <section class="dw-sec">
+        <h3>Responder</h3>
+        <label class="f" for="rsInstr">Indicaciones para la IA (opcional)</label>
+        <input class="input" id="rsInstr" placeholder="Ej. dile que sí podemos empezar en noviembre y propón el jueves">
+        <div class="row-actions"><button class="btn" id="rsIA" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8Z"/><path d="M19 15l.8 2.2 2.2.8-2.2.8L19 21l-.8-2.2-2.2-.8 2.2-.8Z"/></svg>Redactar con IA</button></div>
+        <label class="f" for="rsTexto">Respuesta</label><textarea class="input" id="rsTexto" rows="8" placeholder="Escribe la respuesta o pide un borrador a la IA"></textarea>
+        <div class="row-actions"><span class="hint">Sale desde GHL con tu firma.</span><button class="btn primary" id="rsEnviar" type="button">Enviar respuesta</button></div>
+      </section>
+      <section class="dw-sec"><h3>Envíos</h3><div id="dwEnvios"></div></section>
+      <section class="dw-sec">
+        <h3>Historial</h3>
+        <div class="nota"><input class="input" id="dwNota" placeholder="Añadir una nota (llamada, reunión…)"><button class="btn" id="dwNotaOk" type="button">Añadir</button></div>
+        <ol class="tl" id="dwHistorial"></ol>
+      </section>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script src="/assets/app.js?v=2" defer></script>
+<script src="/assets/app.js?v=3" defer></script>
 </body>
 </html>
