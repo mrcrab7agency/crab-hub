@@ -168,3 +168,21 @@ textarea.input{resize:vertical}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
 .dosfa{display:grid;gap:8px}.qr{background:var(--card-2);border-radius:8px;padding:12px;display:grid;gap:8px;justify-items:center;text-align:center}.qr p{margin:0;font-size:13px;color:var(--muted)}.qr img{width:180px;height:180px;background:#fff;border-radius:6px;image-rendering:pixelated}.input.codigo{font-size:22px;letter-spacing:.35em;text-align:center;font-variant-numeric:tabular-nums}
+
+.nav-ajustes{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:var(--ink);font-weight:600}
+.nav-ajustes svg{width:20px;height:20px;color:var(--ink-2)}.nav-ajustes:hover{background:var(--hover);text-decoration:none}
+.nav-ajustes.on{background:var(--accent-soft);color:var(--accent)}.nav-ajustes.on svg{color:var(--accent)}
+.ajustes-card{max-width:880px}
+.step.ghl{background:#E8F7EE;color:#1E8E4E}
+.estado-ghl{border-radius:8px;padding:10px 12px;background:var(--card-2);font-weight:600;color:var(--ink-2)}
+.estado-ghl.ok{background:var(--ok-soft);color:#1E7B3C}
+.enviado{display:grid;gap:4px;background:var(--ok-soft);border-radius:8px;padding:10px 12px;font-size:13px;color:#1E5C33}
+.enviado b{color:#1E7B3C}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:center;padding:16px;z-index:8}
+.modal-card{background:#fff;border-radius:12px;box-shadow:var(--sh-lg);width:100%;max-width:640px;max-height:92vh;overflow:auto;padding:20px 22px;display:grid;gap:12px}
+.modal-h{display:flex;justify-content:space-between;align-items:center}.modal-h h2{font-size:20px}
+.icon-x{border:0;background:#E4E6EB;width:34px;height:34px;border-radius:50%;font-size:20px;cursor:pointer}
+.adjunto{margin:0;font-size:13px;color:var(--ink-2);background:var(--card-2);border-radius:6px;padding:8px 10px}
+.modal-acc{display:flex;justify-content:flex-end;gap:8px}
+@media (max-width:860px){.nav-ajustes{padding:7px 9px;font-size:13px}}
+#ghlOpciones:not([hidden]){display:grid;gap:12px}

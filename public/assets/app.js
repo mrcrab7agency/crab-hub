@@ -9,6 +9,7 @@
 
   let estado = nuevoEstado();
   let pdfUrl = null;
+  let ultimoPdf = null;
 
   function nuevoEstado() {
     return { id: 'p' + Date.now(), empleados: [], otros: [], logo: '', logos: [], logoFondo: false, logoAlto: 56, acento: '#1677ff', plan: 'autonomos', validezDias: 15 };
@@ -48,7 +49,7 @@
         $('#codigo').focus(); return;
       }
       $('#pw').value = ''; $('#codigo').value = ''; $('#pw').readOnly = false; $('#dosfa').hidden = true; $('#qr').hidden = true; $('#qrImg').innerHTML = '';
-      mostrarApp();
+      mostrarApp(); vista();
     } catch (err) { $('#loginErr').textContent = err.message || 'No se pudo entrar'; if (paso2) $('#codigo').select(); }
   });
   $('#salir').addEventListener('click', async () => { await fetch('/api/auth?a=logout', { method: 'POST' }); mostrarLogin(); });
@@ -251,6 +252,8 @@
       const r = await api('/api/pdf', datos, true);
       const nombre = r.headers.get('X-Nombre-Archivo') || 'propuesta.pdf';
       const blob = await r.blob();
+      ultimoPdf = { blob, nombre: r.headers.get('X-Nombre-Archivo') || 'propuesta.pdf' };
+      $('#enviado').hidden = true;
       if (pdfUrl) URL.revokeObjectURL(pdfUrl);
       pdfUrl = URL.createObjectURL(blob);
       $('#pdfFrame').src = pdfUrl; $('#visor').hidden = false;
@@ -287,7 +290,103 @@
     $('#estadoBuscar').textContent = ''; $('#estadoSugerir').textContent = ''; $('#cliente').focus();
   });
 
+
+  // ---------- vistas ----------
+  function vista() {
+    const aj = location.hash === '#ajustes';
+    $('#propuestas').hidden = aj; $('#ajustes').hidden = !aj;
+    $('#navPropuestas').classList.toggle('on', !aj); $('#navAjustes').classList.toggle('on', aj);
+    if (aj) cargarAjustes();
+  }
+  window.addEventListener('hashchange', vista);
+
+  // ---------- ajustes GHL ----------
+  let embudosGhl = [];
+  async function cargarAjustes() {
+    $('#estadoGhl').textContent = 'Comprobando…';
+    try {
+      const r = await fetch('/api/ajustes', { credentials: 'same-origin' });
+      if (r.status === 401) return mostrarLogin();
+      pintarAjustes(await r.json());
+    } catch { $('#estadoGhl').textContent = 'No se pudo comprobar la conexión.'; }
+  }
+  function pintarAjustes(d) {
+    const g = d.ghl || {};
+    const e = $('#estadoGhl');
+    e.className = 'estado-ghl' + (g.conectado ? ' ok' : '');
+    e.textContent = g.conectado ? `Conectado a ${g.nombreCuenta || 'GHL'} · llave ${g.llave}` : 'Sin conectar';
+    if (d.aviso) e.textContent += ' · ' + d.aviso;
+    if (g.locationId) $('#ghlLoc').value = g.locationId;
+    $('#ghlGuardar').textContent = g.conectado ? 'Cambiar llave' : 'Conectar GHL';
+    embudosGhl = d.embudos || [];
+    $('#ghlOpciones').hidden = !g.conectado;
+    $('#ghlPipe').innerHTML = '<option value="">Sin oportunidad</option>' + embudosGhl.map((p) => `<option value="${esc(p.id)}">${esc(p.nombre)}</option>`).join('');
+    $('#ghlPipe').value = g.pipelineId || '';
+    pintarEtapas(g.stageId);
+    $('#ghlFrom').value = g.emailFrom || ''; $('#ghlCco').value = g.cco || '';
+  }
+  function pintarEtapas(sel) {
+    const p = embudosGhl.find((x) => x.id === $('#ghlPipe').value);
+    $('#ghlStage').innerHTML = (p ? p.etapas : []).map((s) => `<option value="${esc(s.id)}">${esc(s.nombre)}</option>`).join('');
+    if (sel) $('#ghlStage').value = sel;
+    $('#ghlStage').disabled = !p;
+  }
+  $('#ghlPipe').addEventListener('change', () => pintarEtapas());
+  $('#ghlGuardar').addEventListener('click', async () => {
+    const token = $('#ghlToken').value.trim(), locationId = $('#ghlLoc').value.trim();
+    if (!token || !locationId) return toast('Pega la llave y el ID de la subcuenta', true);
+    const b = $('#ghlGuardar'); cargando(b, true, 'Comprobando…');
+    try { const d = await api('/api/ajustes', { token, locationId }); $('#ghlToken').value = ''; pintarAjustes(d); toast('GHL conectado'); }
+    catch (e) { toast(e.message, true); } finally { cargando(b, false); }
+  });
+  $('#ghlGuardarOpc').addEventListener('click', async () => {
+    const b = $('#ghlGuardarOpc'); cargando(b, true, 'Guardando…');
+    try { const d = await api('/api/ajustes', { pipelineId: $('#ghlPipe').value, stageId: $('#ghlStage').value, emailFrom: $('#ghlFrom').value, cco: $('#ghlCco').value }); pintarAjustes(d); toast('Opciones guardadas'); }
+    catch (e) { toast(e.message, true); } finally { cargando(b, false); }
+  });
+
+  // ---------- enviar por GHL ----------
+  function abrirModal() {
+    if (!ultimoPdf) return toast('Genera primero el PDF', true);
+    leerCampos();
+    $('#mgPara').value = estado.email || '';
+    $('#mgNombre').value = estado.contactoNombre || '';
+    $('#mgAsunto').value = `Propuesta de empleados de inteligencia artificial · ${estado.cliente}`;
+    $('#mgMensaje').value = `Hola${estado.contactoNombre ? ' ' + estado.contactoNombre : ''},\n\nTe adjunto la propuesta económica de empleados de inteligencia artificial para ${estado.cliente}, con el detalle de cada puesto, la forma de pago y las condiciones.\n\nSi te encaja, la aceptamos y arrancamos con la reunión de definición. Cualquier duda, me dices y lo vemos.\n\nUn saludo,\nJavier Fernández\nMr Crab 7 · La Buena IA\n828 120 037 · mrcrab7.com`;
+    $('#mgAdjunto').textContent = 'Adjunto: ' + ultimoPdf.nombre;
+    $('#modalGhl').hidden = false; $('#mgPara').focus();
+  }
+  const cerrarModal = () => ($('#modalGhl').hidden = true);
+  $('#btnGhl').addEventListener('click', abrirModal);
+  $('#mgCerrar').addEventListener('click', cerrarModal);
+  $('#mgCancelar').addEventListener('click', cerrarModal);
+  $('#modalGhl').addEventListener('click', (e) => { if (e.target.id === 'modalGhl') cerrarModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#modalGhl').hidden) cerrarModal(); });
+  const aBase64 = (blob) => new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = ko; r.readAsDataURL(blob); });
+  $('#mgEnviar').addEventListener('click', async () => {
+    const para = $('#mgPara').value.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(para)) return toast('Revisa el email del cliente', true);
+    const b = $('#mgEnviar'); cargando(b, true, 'Enviando…');
+    try {
+      const total = estado.precioFinal ?? Math.round(estado.empleados.reduce((a, e) => a + 1000 * e.coef, 0));
+      const d = await api('/api/enviar-ghl', {
+        email: para, contacto: $('#mgNombre').value.trim(), empresa: estado.razon || estado.cliente, web: estado.web,
+        asunto: $('#mgAsunto').value, mensaje: $('#mgMensaje').value, importe: total,
+        pdf: await aBase64(ultimoPdf.blob), nombreArchivo: ultimoPdf.nombre,
+      });
+      estado.email = para; estado.contactoNombre = $('#mgNombre').value.trim(); $('#email').value = para;
+      estado.enviado = { fecha: new Date().toISOString(), contactId: d.contactId, conversationId: d.conversationId };
+      guardar();
+      cerrarModal();
+      const enlace = d.conversationId ? `https://app.gohighlevel.com/v2/location/${encodeURIComponent(d.locationId)}/conversations/conversations/${encodeURIComponent(d.conversationId)}` : '';
+      $('#enviado').innerHTML = `<b>Enviada por GHL</b><span>${d.pasos.map(esc).join(' · ')}</span>${enlace ? `<a href="${enlace}" target="_blank" rel="noopener">Ver la conversación en GHL ↗</a>` : ''}`;
+      $('#enviado').hidden = false;
+      toast('Propuesta enviada a ' + para);
+    } catch (e) { toast(e.message, true); }
+    finally { cargando(b, false); }
+  });
+
   // ---------- inicio ----------
   pintarCampos(); pintarGuardadas();
-  fetch('/api/auth?a=me').then((r) => r.json()).then((d) => (d.ok ? mostrarApp() : mostrarLogin())).catch(mostrarLogin);
+  fetch('/api/auth?a=me').then((r) => r.json()).then((d) => { if (d.ok) { mostrarApp(); vista(); } else mostrarLogin(); }).catch(mostrarLogin);
 })();
