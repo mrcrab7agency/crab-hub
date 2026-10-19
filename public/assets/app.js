@@ -324,6 +324,20 @@
       localStorage.setItem(CLAVE, JSON.stringify(l.slice(0, 40)));
     } catch {}
     if (listar !== false) pintarGuardadas();
+    sincronizar(estado);
+  }
+  // Copia en el servidor para el seguimiento (con un pequeño retardo para no enviar cada tecla)
+  const pendientes = new Map();
+  function sincronizar(p, ya) {
+    if (p && p.id && (p.cliente || (p.empleados || []).length)) pendientes.set(p.id, { ...p, logos: undefined, editado: new Date().toISOString() });
+    if (!pendientes.size) return Promise.resolve();
+    clearTimeout(sincronizar.t);
+    const enviar = async () => {
+      const lote = [...pendientes.values()]; pendientes.clear();
+      for (const x of lote) { try { await api('/api/crm', { op: 'guardar', p: x }); } catch {} }
+    };
+    if (ya) return enviar();
+    sincronizar.t = setTimeout(enviar, 1500);
   }
   function pintarGuardadas() {
     const s = $('#guardadas');
@@ -342,10 +356,12 @@
 
   // ---------- vistas ----------
   function vista() {
-    const aj = location.hash === '#ajustes';
-    $('#propuestas').hidden = aj; $('#ajustes').hidden = !aj;
-    $('#navPropuestas').classList.toggle('on', !aj); $('#navAjustes').classList.toggle('on', aj);
-    if (aj) { cargarAjustes(); estadoHolded(); }
+    const v = ['#ajustes', '#seguimiento'].includes(location.hash) ? location.hash.slice(1) : 'propuestas';
+    $('#propuestas').hidden = v !== 'propuestas'; $('#ajustes').hidden = v !== 'ajustes'; $('#seguimiento').hidden = v !== 'seguimiento';
+    $('#navPropuestas').classList.toggle('on', v === 'propuestas'); $('#navAjustes').classList.toggle('on', v === 'ajustes'); $('#navSeguimiento').classList.toggle('on', v === 'seguimiento');
+    if (v !== 'seguimiento') cerrarDrawer();
+    if (v === 'ajustes') { cargarAjustes(); estadoHolded(); }
+    if (v === 'seguimiento') cargarCrm(true);
   }
   window.addEventListener('hashchange', vista);
 
@@ -425,6 +441,7 @@
       });
       estado.email = para; estado.contactoNombre = $('#mgNombre').value.trim(); $('#email').value = para;
       estado.enviado = { fecha: new Date().toISOString(), contactId: d.contactId, conversationId: d.conversationId };
+      estado.envios = [...(estado.envios || []), { fecha: estado.enviado.fecha, para, asunto: $('#mgAsunto').value, mensaje: $('#mgMensaje').value, contactId: d.contactId, conversationId: d.conversationId, messageId: d.messageId, pdfUrl: d.pdfUrl || '' }];
       guardar();
       cerrarModal();
       const enlace = d.conversationId ? `https://app.gohighlevel.com/v2/location/${encodeURIComponent(d.locationId)}/conversations/conversations/${encodeURIComponent(d.conversationId)}` : '';
@@ -498,7 +515,182 @@
     catch (e) { toast(e.message, true); } finally { cargando(b, false); }
   });
 
+  // ---------- seguimiento (mini CRM) ----------
+  const ESTADOS = [
+    ['solicitud', 'Solicitudes', 'Creada, sin enviar', '#8A8D91'],
+    ['enviada', 'Enviadas', 'Salió de GHL', '#0866FF'],
+    ['entregada', 'Recibidas', 'Entregada en su buzón', '#1078A8'],
+    ['abierta', 'Abiertas', 'El cliente la abrió', '#B26A00'],
+    ['respondida', 'Respondidas', 'Hay respuesta del cliente', '#7A3EC8'],
+    ['ganada', 'Ganadas', 'Contrato firmado', '#31A24C'],
+    ['perdida', 'Perdidas', 'Descartadas', '#E41E3F'],
+  ];
+  const NOMBRE_EST = Object.fromEntries(ESTADOS.map(([k, , d]) => [k, d])); NOMBRE_EST.error = 'Email no entregado';
+  const ETIQ = { solicitud: 'Solicitud', enviada: 'Enviada', entregada: 'Recibida', abierta: 'Abierta', respondida: 'Respondida', ganada: 'Ganada', perdida: 'Perdida', error: 'No entregada' };
+  const EMAIL_EST = { opened: 'Abierto', clicked: 'Abierto y con clic', read: 'Leído', delivered: 'Entregado', sent: 'Enviado', accepted: 'Enviado', queued: 'En cola', failed: 'Falló', bounced: 'Rebotado', undelivered: 'No entregado', rejected: 'Rechazado' };
+  let crm = { items: [], filtro: 'todas', q: '', locationId: '', abierto: null };
+  const fecha = (f) => (f ? new Date(f).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : '-');
+  const fechaHora = (f) => (f ? new Date(f).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
+  const hace = (f) => { if (!f) return '-'; const m = (Date.now() - Date.parse(f)) / 6e4; if (m < 60) return `hace ${Math.max(1, Math.round(m))} min`; if (m < 1440) return `hace ${Math.round(m / 60)} h`; const d = Math.round(m / 1440); return d < 31 ? `hace ${d} d` : fecha(f); };
+  const enlaceGhl = (conv) => (conv && crm.locationId ? `https://app.gohighlevel.com/v2/location/${encodeURIComponent(crm.locationId)}/conversations/conversations/${encodeURIComponent(conv)}` : '');
+
+  async function migrarLocales() {
+    try {
+      if (localStorage.getItem('crabhub.crm.migrado')) return;
+      for (const p of todas()) {
+        if (!p.cliente) continue;
+        if (p.enviado && !(p.envios || []).length) p.envios = [{ fecha: p.enviado.fecha, para: p.email || '', asunto: '', mensaje: '', contactId: p.enviado.contactId, conversationId: p.enviado.conversationId }];
+        await api('/api/crm', { op: 'guardar', p: { ...p, logos: undefined } }).catch(() => {});
+      }
+      localStorage.setItem('crabhub.crm.migrado', '1');
+    } catch {}
+  }
+
+  async function cargarCrm(refrescar) {
+    if (!crm.items.length) $('#crmFilas').innerHTML = '<tr><td colspan="7" class="hint">Cargando…</td></tr>';
+    try {
+      await sincronizar(null, true);
+      const d = await api('/api/crm', { op: 'listar', refrescar: !!refrescar });
+      crm.items = d.items || []; crm.locationId = d.locationId || '';
+      pintarCrm();
+      if (refrescar && !d.ghl) toast('Conecta GHL en Ajustes para ver aperturas y respuestas', true);
+    } catch (e) { toast(e.message, true); }
+  }
+
+  function pintarCrm() {
+    const its = crm.items;
+    const cuenta = (k) => its.filter((x) => x.estado === k || (k === 'enviada' && x.estado === 'error')).length;
+    const enviadas = its.filter((x) => x.envios);
+    const abiertas = enviadas.filter((x) => x.abierto || ['respondida', 'ganada'].includes(x.estado) && x.respuestas);
+    const enJuego = its.filter((x) => !['ganada', 'perdida'].includes(x.estado)).reduce((a, x) => a + (x.total || 0), 0);
+    const ganado = its.filter((x) => x.estado === 'ganada').reduce((a, x) => a + (x.total || 0), 0);
+    $('#crmKpis').innerHTML = ESTADOS.map(([k, n, d, c]) => `<button class="kpi${crm.filtro === k ? ' on' : ''}" data-f="${k}" style="--c:${c}" type="button"><span>${n}</span><b>${cuenta(k)}</b><small>${d}</small></button>`).join('')
+      + `<div class="kpi dato" style="--c:#B26A00"><span>Tasa de apertura</span><b>${enviadas.length ? Math.round((abiertas.length / enviadas.length) * 100) : 0} %</b><small>${abiertas.length} de ${enviadas.length} enviadas</small></div>`
+      + `<div class="kpi dato" style="--c:#0866FF"><span>En juego</span><b>${eur(enJuego)}</b><small>Ganado: ${eur(ganado)}</small></div>`;
+    $('#crmTabs').innerHTML = [['todas', 'Todas', its.length], ...ESTADOS.map(([k, n]) => [k, n, cuenta(k)])].map(([k, n, c]) => `<button type="button" role="tab" data-f="${k}" class="${crm.filtro === k ? 'on' : ''}" aria-selected="${crm.filtro === k}">${n}<i>${c}</i></button>`).join('');
+    const q = crm.q.toLowerCase();
+    const filas = its.filter((x) => (crm.filtro === 'todas' || x.estado === crm.filtro || (crm.filtro === 'enviada' && x.estado === 'error')) && (!q || `${x.cliente} ${x.razon} ${x.email} ${x.ref}`.toLowerCase().includes(q)));
+    $('#crmFilas').innerHTML = filas.map((x) => `<tr data-id="${esc(x.id)}" tabindex="0">
+      <td><div class="cli">${x.logo ? `<img src="${esc(x.logo)}" alt="">` : `<span class="ini">${esc((x.cliente || '?')[0].toUpperCase())}</span>`}<div><b>${esc(x.cliente || 'Sin nombre')}</b><small>${esc(x.email || x.ref || '')}</small></div></div></td>
+      <td><span class="est ${x.estado}" title="${esc(NOMBRE_EST[x.estado] || '')}">${ETIQ[x.estado] || x.estado}</span></td>
+      <td class="r"><b>${eur(x.total || 0)}</b><br><span class="mut">${x.empleados} empleado${x.empleados === 1 ? '' : 's'}</span></td>
+      <td class="mut">${x.ultimoEnvio ? fecha(x.ultimoEnvio) + (x.envios > 1 ? ` · ${x.envios} envíos` : '') : '-'}</td>
+      <td class="mut">${x.abierto ? fechaHora(x.abierto) : x.envios ? 'Aún no' : '-'}</td>
+      <td>${x.respuestas || '-'}${x.noLeidas ? `<span class="nuevo">${x.noLeidas} nueva${x.noLeidas > 1 ? 's' : ''}</span>` : ''}</td>
+      <td class="mut">${hace(x.actividad)}</td></tr>`).join('');
+    $('#crmVacio').hidden = !!filas.length;
+    $('#crmVacio').textContent = its.length ? 'No hay propuestas en este estado.' : 'Todavía no hay propuestas. Se añaden solas al generar o enviar una.';
+    const nl = its.reduce((a, x) => a + (x.noLeidas || 0), 0);
+    $('#navNoLeidas').hidden = !nl; $('#navNoLeidas').textContent = nl;
+  }
+  const filtrar = (e) => { const b = e.target.closest('[data-f]'); if (!b) return; crm.filtro = crm.filtro === b.dataset.f && b.classList.contains('kpi') ? 'todas' : b.dataset.f; pintarCrm(); };
+  $('#crmKpis').addEventListener('click', filtrar);
+  $('#crmTabs').addEventListener('click', filtrar);
+  $('#crmBuscar').addEventListener('input', (e) => { crm.q = e.target.value.trim(); pintarCrm(); });
+  $('#crmRefrescar').addEventListener('click', async () => { const b = $('#crmRefrescar'); cargando(b, true, 'Consultando GHL…'); try { await cargarCrm(true); toast('Estados actualizados'); } finally { cargando(b, false); } });
+  $('#crmFilas').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-id]'); if (tr) abrirDrawer(tr.dataset.id); });
+  $('#crmFilas').addEventListener('keydown', (e) => { if (e.key === 'Enter') { const tr = e.target.closest('tr[data-id]'); if (tr) abrirDrawer(tr.dataset.id); } });
+
+  // Ficha de una propuesta
+  async function abrirDrawer(id) {
+    $('#crmDrawer').hidden = false; $('#dwTitulo').textContent = 'Cargando…'; $('#dwSub').textContent = '';
+    ['#dwRespuestas', '#dwEnvios', '#dwHistorial'].forEach((s) => ($(s).innerHTML = ''));
+    $('#dwReenvio').hidden = true; $('#rsTexto').value = ''; $('#rsInstr').value = '';
+    try {
+      const d = await api('/api/crm', { op: 'detalle', id });
+      if (d.locationId) crm.locationId = d.locationId;
+      crm.abierto = d.reg; pintarDrawer();
+      if ((d.reg.crm?.respuestas || []).some((r) => !r.leida)) api('/api/crm', { op: 'leidas', id }).then(() => { const it = crm.items.find((x) => x.id === id); if (it) { it.noLeidas = 0; pintarCrm(); } }).catch(() => {});
+    } catch (e) { toast(e.message, true); cerrarDrawer(); }
+  }
+  function cerrarDrawer() { $('#crmDrawer').hidden = true; crm.abierto = null; }
+  function pintarDrawer() {
+    const r = crm.abierto; if (!r) return;
+    const p = r.p || {}; const c = r.crm || {}; const envios = p.envios || []; const ult = envios[envios.length - 1];
+    $('#dwTitulo').innerHTML = `${esc(p.cliente || 'Sin nombre')} <span class="est ${r.estado}">${ETIQ[r.estado] || r.estado}</span>`;
+    $('#dwSub').textContent = [p.razon && p.razon !== p.cliente ? p.razon : '', p.ref, eur(r.total || 0) + ' + IGIC', `${(p.empleados || []).length} empleados`].filter(Boolean).join(' · ');
+    const logo = /^(https?:|data:image)/.test(p.logo || '') ? p.logo : '';
+    $('#dwLogo').hidden = !logo; if (logo) $('#dwLogo').src = logo;
+    const cerrada = ['ganada', 'perdida'].includes(c.cierre?.estado);
+    $('#dwGanada').hidden = cerrada; $('#dwPerdida').hidden = cerrada; $('#dwReabrir').hidden = !cerrada;
+    $('#dwReenviar').hidden = !ult?.contactId;
+    const link = enlaceGhl(ult?.conversationId); $('#dwGhl').hidden = !link; if (link) $('#dwGhl').href = link;
+    const resp = c.respuestas || [];
+    $('#dwRespuestas').innerHTML = resp.length ? resp.slice().reverse().map((x, i) => `<div class="resp${x.leida ? '' : ' nueva'}"><small>${fechaHora(x.fecha)}${x.asunto ? ' · ' + esc(x.asunto) : ''}${x.leida ? '' : ' · nueva'}</small>${esc(x.texto || '(sin texto)')}<br><button class="btn sm" type="button" data-resp="${resp.length - 1 - i}">Responder con IA</button></div>`).join('')
+      : `<p class="hint">${envios.length ? 'El cliente aún no ha respondido. Si responde al email, aparece aquí al actualizar.' : 'Esta propuesta todavía no se ha enviado.'}</p>`;
+    $('#dwEnvios').innerHTML = envios.length ? envios.slice().reverse().map((e) => `<div class="env"><div><b>${esc(e.asunto || 'Propuesta')}</b>${e.reenvio ? ' <span class="hint">(reenvío)</span>' : ''}<small>${fechaHora(e.fecha)} · ${esc(e.para || '')}${e.abierto ? ' · abierto el ' + fechaHora(e.abierto) : ''}</small></div><span class="est ${['opened', 'clicked', 'read'].includes(e.estadoEmail) ? 'abierta' : e.estadoEmail === 'delivered' ? 'entregada' : ['failed', 'bounced', 'undelivered', 'rejected'].includes(e.estadoEmail) ? 'error' : 'enviada'}">${EMAIL_EST[e.estadoEmail] || 'Enviado'}</span></div>`).join('') : '<p class="hint">Sin envíos. Genera el PDF y envíala por GHL desde el editor.</p>';
+    const tl = [...(c.historial || []).map((h) => ({ ...h }))];
+    envios.forEach((e) => e.abierto && tl.push({ fecha: e.abierto, tipo: 'abierta', texto: 'El cliente abrió el email' }));
+    resp.forEach((x) => tl.push({ fecha: x.fecha, tipo: 'cliente', texto: 'Respuesta del cliente: ' + (x.texto || '').slice(0, 140) + ((x.texto || '').length > 140 ? '…' : '') }));
+    if (p.academia) tl.push({ fecha: p.academia.fecha, tipo: 'ganada', texto: 'Alta en la Academia · código ' + (p.academia.codigo || '') });
+    if (p.holded?.firma) tl.push({ fecha: p.holded.firma.fecha, tipo: 'nota', texto: 'Factura de firma en Holded (borrador) · ' + eur(p.holded.firma.importe) });
+    tl.sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
+    $('#dwHistorial').innerHTML = tl.map((h) => `<li class="${esc(h.tipo)}">${esc(h.texto)}<small>${fechaHora(h.fecha)}</small></li>`).join('') || '<li>Sin movimientos</li>';
+  }
+  $('#dwCerrar').addEventListener('click', cerrarDrawer);
+  $('#crmDrawer').addEventListener('click', (e) => { if (e.target.id === 'crmDrawer') cerrarDrawer(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#crmDrawer').hidden) cerrarDrawer(); });
+  const accionCrm = async (btn, datos, txt, ok) => {
+    cargando(btn, true, txt);
+    try { const d = await api('/api/crm', { id: crm.abierto.id, ...datos }); if (ok) toast(ok); return d; }
+    catch (e) { toast(e.message, true); return null; } finally { cargando(btn, false); }
+  };
+  const recargarFicha = async () => { const id = crm.abierto?.id; await cargarCrm(false); if (id) await abrirDrawer(id); };
+  $('#dwAbrir').addEventListener('click', () => {
+    const p = crm.abierto?.p; if (!p) return;
+    const local = todas().find((x) => x.id === p.id);
+    estado = { ...nuevoEstado(), ...p, ...(local ? { logos: local.logos, logo: local.logo || p.logo } : {}), envios: p.envios };
+    pintarCampos(); $('#hallazgos').hidden = true; $('#visor').hidden = true; $('#pdfActions').hidden = true;
+    cerrarDrawer(); location.hash = '#propuestas'; toast('Propuesta de ' + (p.cliente || '') + ' abierta en el editor');
+  });
+  $('#dwGanada').addEventListener('click', async () => { if (await accionCrm($('#dwGanada'), { op: 'marcar', estado: 'ganada' }, 'Guardando…', 'Marcada como ganada')) recargarFicha(); });
+  $('#dwPerdida').addEventListener('click', async () => {
+    const motivo = prompt('¿Por qué se ha perdido? (opcional)'); if (motivo === null) return;
+    if (await accionCrm($('#dwPerdida'), { op: 'marcar', estado: 'perdida', motivo }, 'Guardando…', 'Marcada como perdida')) recargarFicha();
+  });
+  $('#dwReabrir').addEventListener('click', async () => { if (await accionCrm($('#dwReabrir'), { op: 'marcar', estado: 'reabrir' }, 'Guardando…', 'Propuesta reabierta')) recargarFicha(); });
+  $('#dwBorrar').addEventListener('click', async () => {
+    if (!confirm('¿Quitar esta propuesta del seguimiento? No se borra de GHL ni del editor.')) return;
+    if (await accionCrm($('#dwBorrar'), { op: 'borrar' }, 'Quitando…', 'Quitada del seguimiento')) { cerrarDrawer(); cargarCrm(false); }
+  });
+  $('#dwNotaOk').addEventListener('click', async () => {
+    const texto = $('#dwNota').value.trim(); if (!texto) return;
+    if (await accionCrm($('#dwNotaOk'), { op: 'nota', texto }, '…')) { $('#dwNota').value = ''; recargarFicha(); }
+  });
+  $('#dwNota').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#dwNotaOk').click(); });
+  $('#dwReenviar').addEventListener('click', () => {
+    const p = crm.abierto?.p || {}; const ult = (p.envios || []).slice(-1)[0] || {};
+    $('#rvAsunto').value = ult.asunto || `Propuesta de empleados de inteligencia artificial · ${p.cliente || ''}`;
+    $('#rvTexto').value = ult.mensaje || `Hola,\n\nTe reenvío la propuesta de empleados de inteligencia artificial para ${p.cliente || 'vosotros'} por si se quedó perdida entre los correos.\n\nCualquier duda me dices y lo vemos.\n\nUn saludo,`;
+    $('#rvAdj').textContent = ult.pdfUrl ? 'Se adjunta de nuevo el PDF de la propuesta.' : 'No tengo el PDF guardado de ese envío: sale solo el texto. Si quieres adjuntarlo, ábrela en el editor y envíala desde allí.';
+    $('#dwReenvio').hidden = false; $('#rvTexto').focus();
+  });
+  $('#rvCancelar').addEventListener('click', () => ($('#dwReenvio').hidden = true));
+  $('#rvEnviar').addEventListener('click', async () => {
+    const p = crm.abierto?.p || {}; const ult = (p.envios || []).slice(-1)[0] || {};
+    if (!confirm(`¿Reenviar la propuesta a ${ult.para || 'el cliente'}?`)) return;
+    if (await accionCrm($('#rvEnviar'), { op: 'reenviar', asunto: $('#rvAsunto').value, texto: $('#rvTexto').value }, 'Reenviando…', 'Propuesta reenviada')) recargarFicha();
+  });
+  async function borradorIA(mensaje) {
+    const b = $('#rsIA');
+    const d = await accionCrm(b, { op: 'ia-respuesta', mensaje, instrucciones: $('#rsInstr').value.trim() }, 'Redactando…');
+    if (d?.texto) { $('#rsTexto').value = d.texto; $('#rsTexto').focus(); toast('Borrador listo: revísalo antes de enviar'); }
+  }
+  $('#rsIA').addEventListener('click', () => borradorIA());
+  $('#dwRespuestas').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-resp]'); if (!b) return;
+    const x = (crm.abierto?.crm?.respuestas || [])[Number(b.dataset.resp)];
+    $('#rsTexto').scrollIntoView({ behavior: 'smooth', block: 'center' }); borradorIA(x?.texto || '');
+  });
+  $('#rsEnviar').addEventListener('click', async () => {
+    const texto = $('#rsTexto').value.trim(); if (texto.length < 5) return toast('Escribe la respuesta', true);
+    const p = crm.abierto?.p || {}; const ult = (p.envios || []).slice(-1)[0] || {};
+    if (!ult.contactId) return toast('Esta propuesta aún no se ha enviado por GHL', true);
+    if (!confirm(`¿Enviar la respuesta a ${ult.para || 'el cliente'}?`)) return;
+    if (await accionCrm($('#rsEnviar'), { op: 'responder', texto }, 'Enviando…', 'Respuesta enviada')) { $('#rsTexto').value = ''; $('#rsInstr').value = ''; recargarFicha(); }
+  });
+
   // ---------- inicio ----------
   pintarCampos(); pintarGuardadas();
-  fetch('/api/auth?a=me').then((r) => r.json()).then((d) => { if (d.ok) { mostrarApp(); vista(); } else mostrarLogin(); }).catch(mostrarLogin);
+  fetch('/api/auth?a=me').then((r) => r.json()).then((d) => { if (d.ok) { mostrarApp(); vista(); migrarLocales().then(() => location.hash !== '#seguimiento' && api('/api/crm', { op: 'listar' }).then((x) => { crm.items = x.items || []; crm.locationId = x.locationId || ''; pintarCrm(); }).catch(() => {})); } else mostrarLogin(); }).catch(mostrarLogin);
 })();
