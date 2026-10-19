@@ -557,39 +557,76 @@
     } catch (e) { toast(e.message, true); }
   }
 
+  const ETAPAS = [['solicitud', 'Solicitud', 'Creadas'], ['enviada', 'Enviada', 'Enviadas'], ['entregada', 'Recibida', 'Recibidas'], ['abierta', 'Abierta', 'Abiertas'], ['respondida', 'Respondida', 'Respondidas'], ['ganada', 'Ganada', 'Ganadas']];
+  const etapaDe = (x) => {
+    const i = ETAPAS.findIndex(([k]) => k === x.estado);
+    if (i >= 0) return i;
+    if (x.estado === 'error') return 1;
+    return x.respuestas ? 4 : x.abierto ? 3 : x.envios ? 1 : 0; // perdida: hasta dónde llegó
+  };
+  const TABS = [['todas', 'Todas'], ['solicitud', 'Sin enviar'], ['enviada', 'En camino'], ['abierta', 'Abiertas'], ['respondida', 'Respondidas'], ['ganada', 'Ganadas'], ['perdida', 'Perdidas']];
+  const enTab = (x, k) => k === 'todas' || x.estado === k || (k === 'enviada' && ['entregada', 'error'].includes(x.estado));
+  const iniciales = (n) => String(n || '?').replace(/[^\p{L}\p{N} ]/gu, ' ').split(/\s+/).filter((w) => w.length > 1 || /\d/.test(w)).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
+  const eurN = (v) => Math.round(v || 0).toLocaleString('es-ES', { useGrouping: 'always' });
+  const logoTile = (x, cls = '') => `<span class="lg ${cls}${x.logo ? '' : ' sin'}">${x.logo ? `<img src="${esc(x.logo)}" alt="" loading="lazy">` : ''}<em>${esc(iniciales(x.cliente))}</em></span>`;
+  const pista = (n, perdida) => `<span class="pista${perdida ? ' perdida' : ''}" aria-hidden="true">${ETAPAS.map((_, i) => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span>`;
+  function arreglarLogos(raiz) { raiz.querySelectorAll('.lg img').forEach((img) => img.addEventListener('error', () => { img.closest('.lg').classList.add('sin'); img.remove(); }, { once: true })); }
+
   function pintarCrm() {
     const its = crm.items;
-    const cuenta = (k) => its.filter((x) => x.estado === k || (k === 'enviada' && x.estado === 'error')).length;
-    const enviadas = its.filter((x) => x.envios);
-    const abiertas = enviadas.filter((x) => x.abierto || ['respondida', 'ganada'].includes(x.estado) && x.respuestas);
+    const niveles = its.map(etapaDe);
+    const llegan = ETAPAS.map((_, i) => niveles.filter((n) => n >= i).length);
     const enJuego = its.filter((x) => !['ganada', 'perdida'].includes(x.estado)).reduce((a, x) => a + (x.total || 0), 0);
-    const ganado = its.filter((x) => x.estado === 'ganada').reduce((a, x) => a + (x.total || 0), 0);
-    $('#crmKpis').innerHTML = ESTADOS.map(([k, n, d, c]) => `<button class="kpi${crm.filtro === k ? ' on' : ''}" data-f="${k}" style="--c:${c}" type="button"><span>${n}</span><b>${cuenta(k)}</b><small>${d}</small></button>`).join('')
-      + `<div class="kpi dato" style="--c:#B26A00"><span>Tasa de apertura</span><b>${enviadas.length ? Math.round((abiertas.length / enviadas.length) * 100) : 0} %</b><small>${abiertas.length} de ${enviadas.length} enviadas</small></div>`
-      + `<div class="kpi dato" style="--c:#0866FF"><span>En juego</span><b>${eur(enJuego)}</b><small>Ganado: ${eur(ganado)}</small></div>`;
-    $('#crmTabs').innerHTML = [['todas', 'Todas', its.length], ...ESTADOS.map(([k, n]) => [k, n, cuenta(k)])].map(([k, n, c]) => `<button type="button" role="tab" data-f="${k}" class="${crm.filtro === k ? 'on' : ''}" aria-selected="${crm.filtro === k}">${n}<i>${c}</i></button>`).join('');
+    const ganadas = its.filter((x) => x.estado === 'ganada');
+    const ganado = ganadas.reduce((a, x) => a + (x.total || 0), 0);
+    const enviadas = llegan[1], abiertas = llegan[3];
+    const cerradas = its.filter((x) => ['ganada', 'perdida'].includes(x.estado)).length;
+    const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+    $('#crmMetricas').innerHTML = `
+      <div class="m m-big"><span>En juego</span><b>${eurN(enJuego)}<small>€</small></b><em>${its.length - cerradas} propuesta${its.length - cerradas === 1 ? '' : 's'} abierta${its.length - cerradas === 1 ? '' : 's'}</em></div>
+      <div class="m"><span>Ganado</span><b>${eurN(ganado)}<small>€</small></b><em>${ganadas.length} contrato${ganadas.length === 1 ? '' : 's'}</em></div>
+      <div class="m"><span>Tasa de apertura</span><b>${pct(abiertas, enviadas)}<small>%</small></b><em>${abiertas} de ${enviadas} enviadas</em></div>
+      <div class="m"><span>Tasa de cierre</span><b>${pct(ganadas.length, cerradas)}<small>%</small></b><em>${cerradas ? `${ganadas.length} de ${cerradas} cerradas` : 'Sin cierres aún'}</em></div>`;
+    const maxL = Math.max(1, llegan[0]);
+    $('#crmKpis').innerHTML = ETAPAS.map(([k, , n], i) => `<li><button type="button" data-f="${k}" class="${crm.filtro === k ? 'on' : ''}" style="--w:${Math.max(6, (llegan[i] / maxL) * 100)}%">
+      <span class="f-n">${String(i + 1).padStart(2, '0')}</span><span class="f-t">${n}</span><b>${llegan[i]}</b>
+      <span class="f-bar"><i></i></span><small>${i ? (llegan[i - 1] ? pct(llegan[i], llegan[i - 1]) + ' % de la etapa anterior' : '—') : 'Total del embudo'}</small></button></li>`).join('');
+    $('#crmTabs').innerHTML = TABS.map(([k, n]) => { const c = its.filter((x) => enTab(x, k)).length; return `<button type="button" role="tab" data-f="${k}" class="${crm.filtro === k ? 'on' : ''}" aria-selected="${crm.filtro === k}">${n}<i>${c}</i></button>`; }).join('');
     const q = crm.q.toLowerCase();
-    const filas = its.filter((x) => (crm.filtro === 'todas' || x.estado === crm.filtro || (crm.filtro === 'enviada' && x.estado === 'error')) && (!q || `${x.cliente} ${x.razon} ${x.email} ${x.ref}`.toLowerCase().includes(q)));
-    $('#crmFilas').innerHTML = filas.map((x) => `<tr data-id="${esc(x.id)}" tabindex="0">
-      <td><div class="cli">${x.logo ? `<img src="${esc(x.logo)}" alt="">` : `<span class="ini">${esc((x.cliente || '?')[0].toUpperCase())}</span>`}<div><b>${esc(x.cliente || 'Sin nombre')}</b><small>${esc(x.email || x.ref || '')}</small></div></div></td>
-      <td><span class="est ${x.estado}" title="${esc(NOMBRE_EST[x.estado] || '')}">${ETIQ[x.estado] || x.estado}</span></td>
-      <td class="r"><b>${eur(x.total || 0)}</b><br><span class="mut">${x.externo ? 'PDF subido' : `${x.empleados} empleado${x.empleados === 1 ? '' : 's'}`}</span></td>
-      <td class="mut">${x.ultimoEnvio ? fecha(x.ultimoEnvio) + (x.envios > 1 ? ` · ${x.envios} envíos` : '') : '-'}</td>
-      <td class="mut">${x.abierto ? fechaHora(x.abierto) : x.envios ? 'Aún no' : '-'}</td>
-      <td>${x.respuestas || '-'}${x.noLeidas ? `<span class="nuevo">${x.noLeidas} nueva${x.noLeidas > 1 ? 's' : ''}</span>` : ''}</td>
-      <td class="mut">${hace(x.actividad)}</td></tr>`).join('');
+    const filas = its.filter((x) => enTab(x, crm.filtro) && (!q || `${x.cliente} ${x.razon} ${x.email} ${x.ref}`.toLowerCase().includes(q)));
+    $('#crmCuenta').textContent = `${filas.length} de ${its.length}`;
+    $('#crmFilas').innerHTML = filas.map((x) => {
+      const n = etapaDe(x);
+      const sub = [x.ref, x.email].filter(Boolean).join(' · ');
+      const seg = x.respuestas ? `${x.respuestas} respuesta${x.respuestas > 1 ? 's' : ''}` : x.abierto ? `Abierta ${hace(x.abierto)}` : x.ultimoEnvio ? `Enviada ${hace(x.ultimoEnvio)}${x.envios > 1 ? ` · ${x.envios} envíos` : ''}` : 'Pendiente de enviar';
+      return `<article class="fila est-${x.estado}" data-id="${esc(x.id)}" tabindex="0" role="listitem">
+        ${logoTile(x)}
+        <div class="f-cli"><b>${esc(x.cliente || 'Sin nombre')}</b><small>${esc(sub || (x.externo ? 'PDF subido' : ''))}</small></div>
+        <div class="f-etapa"><span class="est ${x.estado}">${ETIQ[x.estado] || x.estado}</span>${pista(n, x.estado === 'perdida')}</div>
+        <div class="f-seg">${esc(seg)}${x.noLeidas ? `<span class="nuevo">${x.noLeidas} nueva${x.noLeidas > 1 ? 's' : ''}</span>` : ''}</div>
+        <div class="f-imp"><b>${eurN(x.total)}<small> €</small></b><small>${x.externo ? 'Propuesta en PDF' : `${x.empleados} empleado${x.empleados === 1 ? '' : 's'} IA`}</small></div>
+        <div class="f-act">${hace(x.actividad)}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></div>
+      </article>`;
+    }).join('');
+    arreglarLogos($('#crmFilas'));
     $('#crmVacio').hidden = !!filas.length;
-    $('#crmVacio').textContent = its.length ? 'No hay propuestas en este estado.' : 'Todavía no hay propuestas. Se añaden solas al generar o enviar una.';
+    $('#crmVacio p').textContent = its.length ? 'No hay propuestas en esta etapa.' : 'Todavía no hay propuestas. Sube un PDF o genera una desde Propuestas.';
     const nl = its.reduce((a, x) => a + (x.noLeidas || 0), 0);
     $('#navNoLeidas').hidden = !nl; $('#navNoLeidas').textContent = nl;
   }
-  const filtrar = (e) => { const b = e.target.closest('[data-f]'); if (!b) return; crm.filtro = crm.filtro === b.dataset.f && b.classList.contains('kpi') ? 'todas' : b.dataset.f; pintarCrm(); };
+  const filtrar = (e) => {
+    const b = e.target.closest('[data-f]'); if (!b) return;
+    const k = b.dataset.f;
+    const desdeEmbudo = !!b.closest('#crmKpis');
+    crm.filtro = desdeEmbudo && crm.filtro === k ? 'todas' : (desdeEmbudo && ['entregada'].includes(k) ? 'enviada' : k);
+    pintarCrm();
+  };
   $('#crmKpis').addEventListener('click', filtrar);
   $('#crmTabs').addEventListener('click', filtrar);
   $('#crmBuscar').addEventListener('input', (e) => { crm.q = e.target.value.trim(); pintarCrm(); });
   $('#crmRefrescar').addEventListener('click', async () => { const b = $('#crmRefrescar'); cargando(b, true, 'Consultando GHL…'); try { await cargarCrm(true); toast('Estados actualizados'); } finally { cargando(b, false); } });
-  $('#crmFilas').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-id]'); if (tr) abrirDrawer(tr.dataset.id); });
-  $('#crmFilas').addEventListener('keydown', (e) => { if (e.key === 'Enter') { const tr = e.target.closest('tr[data-id]'); if (tr) abrirDrawer(tr.dataset.id); } });
+  $('#crmFilas').addEventListener('click', (e) => { const f = e.target.closest('[data-id]'); if (f) abrirDrawer(f.dataset.id); });
+  $('#crmFilas').addEventListener('keydown', (e) => { if (e.key === 'Enter') { const f = e.target.closest('[data-id]'); if (f) abrirDrawer(f.dataset.id); } });
 
   // Ficha de una propuesta
   async function abrirDrawer(id) {
@@ -607,8 +644,16 @@
   function pintarDrawer() {
     const r = crm.abierto; if (!r) return;
     const p = r.p || {}; const c = r.crm || {}; const envios = p.envios || []; const ult = envios[envios.length - 1];
+    const it = { cliente: p.cliente, logo: r.logoUrl || '' };
+    $('#dwRef').textContent = [p.ref, p.externo ? 'Propuesta en PDF' : 'Generada en Crab Hub'].filter(Boolean).join(' · ');
     $('#dwTitulo').innerHTML = `${esc(p.cliente || 'Sin nombre')} <span class="est ${r.estado}">${ETIQ[r.estado] || r.estado}</span>`;
-    $('#dwSub').textContent = [p.razon && p.razon !== p.cliente ? p.razon : '', p.ref, eur(r.total || 0) + ' + impuestos', p.externo ? 'PDF subido' : `${(p.empleados || []).length} empleados`].filter(Boolean).join(' · ');
+    $('#dwSub').textContent = [p.razon && p.razon !== p.cliente ? p.razon : '', p.email || ult?.para || '', p.externo ? '' : `${(p.empleados || []).length} empleados IA`].filter(Boolean).join(' · ');
+    $('#dwTotal').textContent = eur(r.total || 0);
+    $('#dwIni').textContent = iniciales(p.cliente);
+    $('#dwLogoBtn').classList.toggle('sin', !it.logo);
+    $('#dwLogo').hidden = !it.logo; if (it.logo) { $('#dwLogo').src = it.logo; $('#dwLogo').onerror = () => { $('#dwLogo').hidden = true; $('#dwLogoBtn').classList.add('sin'); }; }
+    const nv = etapaDe({ estado: r.estado, respuestas: (c.respuestas || []).length, abierto: envios.some((e) => e.abierto), envios: envios.length });
+    $('#dwTrack').innerHTML = ETAPAS.map(([k, n], i) => `<li class="${i < nv ? 'hecho' : i === nv ? 'aqui' : ''}${r.estado === 'perdida' && i === nv ? ' perdida' : ''}"><i></i><span>${r.estado === 'perdida' && i === nv ? 'Perdida' : n}</span></li>`).join('');
     $('#dwAbrir').hidden = !!p.externo;
     const listo = !!p.externo && !envios.length;
     $('#dwEnvio').hidden = !listo;
@@ -620,8 +665,6 @@
       $('#evMensaje').value = p.borrador?.mensaje || `Hola${p.contactoNombre ? ' ' + p.contactoNombre : ''},\n\nTe adjunto la propuesta para ${p.cliente || 'vosotros'}. Si te encaja, la comentamos en una llamada y fijamos los siguientes pasos.\n\nUn saludo,`;
       $('#evAdj').textContent = 'Adjunto: ' + (p.externo.nombre || 'propuesta.pdf');
     }
-    const logo = /^(https?:|data:image)/.test(p.logo || '') ? p.logo : '';
-    $('#dwLogo').hidden = !logo; if (logo) $('#dwLogo').src = logo;
     const cerrada = ['ganada', 'perdida'].includes(c.cierre?.estado);
     $('#dwGanada').hidden = cerrada; $('#dwPerdida').hidden = cerrada; $('#dwReabrir').hidden = !cerrada;
     $('#dwReenviar').hidden = !ult?.contactId;
@@ -640,6 +683,14 @@
     $('#dwHistorial').innerHTML = tl.map((h) => { const a = accionTl(h); return `<li class="${esc(h.tipo)}${a ? ' link' : ''}"${a ? ` data-acc="${a}" tabindex="0" title="${a === 'editor' ? 'Abrir la propuesta en el editor' : 'Ver el PDF de la propuesta'}"` : ''}>${esc(h.texto)}${a ? `<span class="ir">${a === 'editor' ? 'Abrir ›' : 'Ver PDF ›'}</span>` : ''}<small>${fechaHora(h.fecha)}</small></li>`; }).join('') || '<li>Sin movimientos</li>';
   }
   $('#dwCerrar').addEventListener('click', cerrarDrawer);
+  $('#dwLogoBtn').addEventListener('click', async () => {
+    const v = prompt('Logo del cliente: pega la dirección de la imagen o la web del cliente.\nDéjalo vacío para buscarlo automáticamente.', '');
+    if (v === null) return;
+    const t = v.trim();
+    const datos = !t ? {} : /\.(png|jpe?g|svg|webp|gif)(\?|$)/i.test(t) ? { url: t } : { web: t };
+    const d = await accionCrm($('#dwLogoBtn'), { op: 'logo', ...datos }, '…');
+    if (d) { toast('Logo actualizado'); recargarFicha(); }
+  });
   $('#crmDrawer').addEventListener('click', (e) => { if (e.target.id === 'crmDrawer') cerrarDrawer(); });
   document.addEventListener('keydown', (e) => { if (e.key !== 'Escape') return; if (!$('#modalSubir').hidden) { cerrarSubir(); return; } if (!$('#modalPdf').hidden) { $('#pvCerrar').click(); return; } if (!$('#crmDrawer').hidden) cerrarDrawer(); });
   const accionCrm = async (btn, datos, txt, ok) => {
