@@ -668,6 +668,8 @@
     const cerrada = ['ganada', 'perdida'].includes(c.cierre?.estado);
     $('#dwGanada').hidden = cerrada; $('#dwPerdida').hidden = cerrada; $('#dwReabrir').hidden = !cerrada;
     $('#dwReenviar').hidden = !ult?.contactId;
+    $('#dwAcademia').textContent = p.academia ? 'Reenviar bienvenida Academia' : 'Alta en la Academia';
+    $('#dwAcademia').title = p.academia ? `Código ${p.academia.codigo} · vuelve a enviar el email de bienvenida (mismo código)` : 'Contrato firmado: crea el código de empresa en la Academia y envía por GHL el email de bienvenida con el enlace y el calendario de sesiones';
     const link = enlaceGhl(ult?.conversationId); $('#dwGhl').hidden = !link; if (link) $('#dwGhl').href = link;
     const resp = c.respuestas || [];
     $('#dwRespuestas').innerHTML = resp.length ? resp.slice().reverse().map((x, i) => `<div class="resp${x.leida ? '' : ' nueva'}"><small>${fechaHora(x.fecha)}${x.asunto ? ' · ' + esc(x.asunto) : ''}${x.leida ? '' : ' · nueva'}</small>${esc(x.texto || '(sin texto)')}<br><button class="btn sm" type="button" data-resp="${resp.length - 1 - i}">Responder con IA</button></div>`).join('')
@@ -787,6 +789,20 @@
   $('#dwPerdida').addEventListener('click', async () => {
     const motivo = prompt('¿Por qué se ha perdido? (opcional)'); if (motivo === null) return;
     if (await accionCrm($('#dwPerdida'), { op: 'marcar', estado: 'perdida', motivo }, 'Guardando…', 'Marcada como perdida')) recargarFicha();
+  });
+  $('#dwAcademia').addEventListener('click', async () => {
+    const r = crm.abierto; if (!r) return;
+    const p = r.p || {}; const ult = (p.envios || []).slice(-1)[0];
+    let email = (p.academia?.email || p.email || ult?.para || '').trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      const v = prompt('Email del cliente para enviarle el acceso a la Academia:', ''); if (v === null) return;
+      email = v.trim(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast('Ese email no es válido', true);
+    }
+    const empresa = p.razon || p.cliente || 'este cliente';
+    const msg = p.academia ? `¿Reenviar a ${email} el email de bienvenida de la Academia de ${empresa} (código ${p.academia.codigo})?` : `¿Dar de alta a ${empresa} en la Academia y enviar el email de bienvenida a ${email}?\n\nSe crea su código de empresa y le llega el enlace a la academia y el calendario de sesiones.`;
+    if (!confirm(msg)) return;
+    const d = await accionCrm($('#dwAcademia'), { op: 'academia', email }, p.academia ? 'Reenviando…' : 'Dando de alta…');
+    if (d) { toast(`Bienvenida enviada a ${email} · código ${d.codigo}`); recargarFicha(); }
   });
   $('#dwReabrir').addEventListener('click', async () => { if (await accionCrm($('#dwReabrir'), { op: 'marcar', estado: 'reabrir' }, 'Guardando…', 'Propuesta reabierta')) recargarFicha(); });
   $('#dwBorrar').addEventListener('click', async () => {
