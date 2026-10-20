@@ -4,6 +4,7 @@ import { proteger, cuerpo, json } from './_lib/core.js';
 import { leer } from './_lib/almacen.js';
 import { ghl } from './_lib/ghl.js';
 import { FIRMA_HTML } from './_lib/firma.js';
+import { DEMO_HTML } from './_lib/demo.js';
 import { preguntar, sacarJSON } from './_lib/ia.js';
 import { put, get, list, del } from '@vercel/blob';
 import { conClaude } from './_lib/requisitos-ia.js';
@@ -91,9 +92,9 @@ async function refrescar(reg, cfg) {
   return cambio;
 }
 
-async function enviarEmail(cfg, { contactId, asunto, texto, adjuntos, replyMessageId }) {
+async function enviarEmail(cfg, { contactId, asunto, texto, adjuntos, replyMessageId, demo }) {
   const r = await ghl(cfg, 'POST', '/conversations/messages', {
-    type: 'Email', contactId, subject: String(asunto).slice(0, 200), html: aHtml(texto) + FIRMA_HTML,
+    type: 'Email', contactId, subject: String(asunto).slice(0, 200), html: aHtml(texto) + (demo ? DEMO_HTML : '') + FIRMA_HTML,
     ...(adjuntos?.length ? { attachments: adjuntos } : {}), ...(replyMessageId ? { replyMessageId } : {}),
     ...(cfg.emailFrom ? { emailFrom: cfg.emailFrom } : {}), ...(cfg.cco ? { emailBcc: [cfg.cco] } : {}),
   });
@@ -352,7 +353,7 @@ Historial de respuestas previas del cliente:\n${(reg.crm.respuestas || []).slice
     const texto = String(b.texto || ult.mensaje || '').trim();
     if (!texto) return json(res, 400, { error: 'Falta el texto del email' });
     const adjuntos = ult.pdfUrl ? [ult.pdfUrl] : [];
-    const r = await enviarEmail(cfg, { contactId: ult.contactId, asunto, texto, adjuntos });
+    const r = await enviarEmail(cfg, { contactId: ult.contactId, asunto, texto, adjuntos, demo: true });
     const nuevo = { fecha: new Date().toISOString(), para: ult.para, asunto, mensaje: texto, contactId: ult.contactId, conversationId: r.conversationId || ult.conversationId, messageId: r.messageId, pdfUrl: ult.pdfUrl, reenvio: true };
     p.envios.push(nuevo);
     reg.crm.historial.push({ fecha: nuevo.fecha, tipo: 'envio', texto: `Reenviada a ${ult.para || ''}${adjuntos.length ? ' con el PDF' : ''}` });
