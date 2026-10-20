@@ -1,6 +1,7 @@
 // Envío de una propuesta por GHL: contacto, PDF a medios, email con seguimiento y oportunidad en el embudo.
 import { ghl } from './ghl.js';
 import { FIRMA_HTML } from './firma.js';
+import { DEMO_HTML } from './demo.js';
 
 const esc = (s = '') => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -25,7 +26,7 @@ export async function enviarPropuestaGhl(cfg, { email, contacto, empresa, telefo
   if (!url) throw new Error('GHL no devolvió la dirección del PDF');
   pasos.push('PDF subido a GHL');
 
-  const html = String(mensaje).split(/\n{2,}/).map((p) => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`).join('') + (sinFirma ? '' : FIRMA_HTML);
+  const html = String(mensaje).split(/\n{2,}/).map((p) => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`).join('') + DEMO_HTML + (sinFirma ? '' : FIRMA_HTML);
   const envio = await ghl(cfg, 'POST', '/conversations/messages', {
     type: 'Email', contactId, subject: String(asunto).slice(0, 200), html, attachments: [url],
     ...(cfg.emailFrom ? { emailFrom: cfg.emailFrom } : {}),
