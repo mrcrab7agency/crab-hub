@@ -361,11 +361,11 @@ body{font-family:var(--font);font-feature-settings:"cv11","ss01"}
 .fila+.fila::before{content:"";position:absolute;left:14px;right:14px;top:0;height:1px;background:#EEF0F5}
 .fila:hover,.fila:focus-visible{background:#F6F8FE;outline:0}
 .fila:hover::before,.fila:hover+.fila::before{opacity:0}
-.lg{position:relative;width:48px;height:48px;border-radius:13px;background:#fff;border:1px solid #E4E8F0;display:grid;place-items:center;overflow:hidden;flex:none}
-.lg img{width:100%;height:100%;object-fit:contain;padding:6px}
-.lg em{display:none;font-style:normal;font-family:var(--disp);font-weight:700;font-size:16px;letter-spacing:.02em;color:#fff}
-.lg.sin{background:radial-gradient(circle at 30% 20%,#2F6FED,transparent 70%),linear-gradient(140deg,#121A2E,#0A0E1A);border-color:transparent}
-.lg.sin em{display:block}
+.lg:not(.btn){position:relative;width:48px;height:48px;border-radius:13px;background:#fff;border:1px solid #E4E8F0;display:grid;place-items:center;overflow:hidden;flex:none}
+.lg:not(.btn) img{width:100%;height:100%;object-fit:contain;padding:6px}
+.lg:not(.btn) em{display:none;font-style:normal;font-family:var(--disp);font-weight:700;font-size:16px;letter-spacing:.02em;color:#fff}
+.lg:not(.btn).sin{background:radial-gradient(circle at 30% 20%,#2F6FED,transparent 70%),linear-gradient(140deg,#121A2E,#0A0E1A);border-color:transparent}
+.lg:not(.btn).sin em{display:block}
 .f-cli{min-width:0}
 .f-cli b{display:block;font-size:15px;font-weight:600;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.005em}
 .f-cli small{display:block;font-size:12.5px;color:#6B7385;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
@@ -460,8 +460,8 @@ body{font-family:var(--font);font-feature-settings:"cv11","ss01"}
 @media (max-width:720px){.seg-metricas .m-big b{font-size:36px}.seg-metricas b{font-size:28px}.seg-tabs{flex-wrap:nowrap;overflow-x:auto;max-width:100%;scrollbar-width:none}.seg-tabs button{flex:none}.seg-lista-h{display:grid}.f-imp>small{display:none}}
 @media (max-width:720px){.pista i{width:12px}.f-etapa{min-width:0}}
 .fila{grid-template-columns:64px minmax(170px,1.5fr) 190px minmax(140px,1.1fr) 130px 104px}
-.lg{width:64px;height:48px;border-radius:12px}
-.lg img{padding:5px 6px}
+.lg:not(.btn){width:64px;height:48px;border-radius:12px}
+.lg:not(.btn) img{padding:5px 6px}
 .dw-logo{width:76px;height:62px}
 @media (max-width:1180px){.fila{grid-template-columns:64px minmax(150px,1fr) 170px 120px 92px}}
 @media (max-width:720px){.fila{grid-template-columns:56px minmax(0,1fr) auto}.fila .lg{width:56px;height:44px}}
