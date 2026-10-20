@@ -8,6 +8,7 @@ import { preguntar, sacarJSON } from './_lib/ia.js';
 import { put, get, list, del } from '@vercel/blob';
 import { conClaude } from './_lib/requisitos-ia.js';
 import { enviarPropuestaGhl } from './_lib/envio-ghl.js';
+import { altaAcademia } from './_lib/alta.js';
 import { sitioDe, buscarLogo, descargarImagen, tipoImagen, guardarLogo, leerLogo } from './_lib/logos.js';
 
 export const config = { api: { bodyParser: { sizeLimit: '4.4mb' } } };
@@ -206,6 +207,8 @@ export default proteger(async (req, res) => {
     for (const v of reg.p?.envios || []) if (v.reenvio && !p.envios.some((e) => e.messageId === v.messageId)) p.envios.push(v);
     p.envios.sort((x, y) => String(x.fecha).localeCompare(String(y.fecha)));
     if (reg.p?.externo) return json(res, 200, { ok: true, ignorada: true });
+    // El alta en la academia puede hacerse desde el seguimiento: no se pierde al sincronizar desde el editor
+    if (reg.p?.academia && !p.academia) p.academia = reg.p.academia;
     reg.p = limpiarP(p);
     reg.crm = reg.crm || {};
     if (p.envios.length > antes) (reg.crm.historial = reg.crm.historial || []).push({ fecha: p.envios[p.envios.length - 1].fecha, tipo: 'envio', texto: `Propuesta enviada a ${p.envios[p.envios.length - 1].para || ''}` });
@@ -271,6 +274,19 @@ export default proteger(async (req, res) => {
     else { delete reg.crm.cierre; reg.crm.historial.push({ fecha: new Date().toISOString(), tipo: 'reabierta', texto: 'Reabierta' }); }
     await guardarRegistro(reg);
     return json(res, 200, { ok: true, estado: estadoDe(reg) });
+  }
+
+  if (b.op === 'academia') {
+    const email = String(b.email || p.email || ult?.para || '').trim();
+    const empresa = String(p.razon || p.cliente || '').trim();
+    const d = await altaAcademia({ email, empresa, nombre: p.contactoNombre || '' });
+    const fecha = new Date().toISOString();
+    if (!p.email) p.email = email.toLowerCase();
+    p.academia = { codigo: d.codigo, fecha, email: email.toLowerCase(), envios: (p.academia?.envios || 0) + 1 };
+    reg.p = p;
+    if (!reg.crm.cierre) reg.crm.cierre = { estado: 'ganada', fecha, motivo: 'Contrato firmado · alta en la Academia' };
+    await guardarRegistro(reg);
+    return json(res, 200, { ...d, estado: estadoDe(reg) });
   }
 
   if (b.op === 'nota') {
