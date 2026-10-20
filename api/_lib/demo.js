@@ -14,7 +14,7 @@ export const DEMO = {
 
 // Token de Bunny: SHA256_HEX(clave + idVideo + caducidad)
 export function urlReproductor(horas = 6) {
-  const clave = env('BUNNY_TOKEN_KEY');
+  const clave = env('BUNNY_TOKEN_KEY') || env('BUNNY_API_KEY');
   if (!clave) return '';
   const expires = Math.floor(Date.now() / 1000) + horas * 3600;
   const token = crypto.createHash('sha256').update(clave + DEMO.video + expires).digest('hex');
