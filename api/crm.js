@@ -8,7 +8,7 @@ import { DEMO_HTML } from './_lib/demo.js';
 import { preguntar, sacarJSON } from './_lib/ia.js';
 import { put, get, list, del } from '@vercel/blob';
 import { conClaude } from './_lib/requisitos-ia.js';
-import { enviarPropuestaGhl } from './_lib/envio-ghl.js';
+import { enviarPropuestaGhl, CC_EMPLEADOS } from './_lib/envio-ghl.js';
 import { altaAcademia } from './_lib/alta.js';
 import { sitioDe, buscarLogo, descargarImagen, tipoImagen, guardarLogo, leerLogo } from './_lib/logos.js';
 
@@ -23,8 +23,9 @@ async function leerPdf(id) {
 
 const PROMPT_IMPORTAR = `Te paso una propuesta comercial en PDF que Mr Crab 7 (Javi, La Buena IA) va a enviar a un cliente. Extrae los datos y redacta el email de envío.
 Devuelve SOLO un JSON con esta forma, sin texto alrededor:
-{"cliente":"nombre comercial del cliente","razon":"razón social si aparece","cif":"","email":"email del cliente si aparece","contacto":"nombre de la persona de contacto si aparece","telefono":"","web":"","ref":"referencia de la propuesta si aparece","total":0,"empleados":["nombre de cada puesto, servicio o partida principal"],"resumen":"2-3 frases con lo que se propone","asunto":"asunto del email","mensaje":"cuerpo del email"}
+{"cliente":"nombre comercial del cliente","razon":"razón social si aparece","cif":"","email":"email del cliente si aparece","contacto":"nombre de la persona de contacto si aparece","telefono":"","web":"","ref":"referencia de la propuesta si aparece","total":0,"empleados":["nombre de cada puesto, servicio o partida principal"],"resumen":"2-3 frases con lo que se propone","producto":"empleados | reservus | otro","asunto":"asunto del email","mensaje":"cuerpo del email"}
 Reglas:
+- producto: "empleados" si propone empleados de inteligencia artificial (Empleados IA / HUB iABOT), "reservus" si propone Reservus IA (reservas y llamadas con IA), "otro" en cualquier otro caso.
 - total: importe total de la propuesta en euros, sin impuestos, como número (si hay varias opciones, la principal o recomendada). 0 si no hay.
 - Si un dato no aparece, déjalo vacío; no lo inventes. Nunca pongas como email del cliente uno de Mr Crab 7, FERAMA o mrcrab7.
 - El email lo firma Javi, en español de España, cercano y profesional, breve (4-7 frases): saluda por el nombre si lo hay, dice que adjunta la propuesta para el cliente, resume en una frase el valor principal, propone el siguiente paso (comentarla en una llamada o reunión) y se despide con "Un saludo," sin firma (se añade sola). Sin negritas ni listas.
@@ -92,10 +93,11 @@ async function refrescar(reg, cfg) {
   return cambio;
 }
 
-async function enviarEmail(cfg, { contactId, asunto, texto, adjuntos, replyMessageId, demo }) {
+async function enviarEmail(cfg, { contactId, asunto, texto, adjuntos, replyMessageId, demo, cc }) {
   const r = await ghl(cfg, 'POST', '/conversations/messages', {
     type: 'Email', contactId, subject: String(asunto).slice(0, 200), html: aHtml(texto) + (demo ? DEMO_HTML : '') + FIRMA_HTML,
     ...(adjuntos?.length ? { attachments: adjuntos } : {}), ...(replyMessageId ? { replyMessageId } : {}),
+    ...(cc?.length ? { emailCc: cc } : {}),
     ...(cfg.emailFrom ? { emailFrom: cfg.emailFrom } : {}), ...(cfg.cco ? { emailBcc: [cfg.cco] } : {}),
   });
   return r;
@@ -105,6 +107,12 @@ const SISTEMA_RESP = `Eres Javi (Javier Fernández), CEO de Mr Crab 7 · La Buen
 Estilo: español de España, cercano y profesional, frases cortas, sin relleno ni tecnicismos innecesarios. Respondes exactamente a lo que pregunta o plantea el cliente, con los datos reales de la propuesta.
 Nunca plantees la IA como sustitución de personas ni como ahorro de contrataciones: multiplica el equipo que ya existe. No inventes precios, plazos ni condiciones que no estén en la propuesta; si hace falta algo que no sabes, propón comentarlo en una llamada o reunión.
 Si el cliente acepta, explica el siguiente paso: contrato y pago a la firma (50 %), y la primera sesión de implantación. Si pide descuento, no lo concedas por tu cuenta: di que lo revisas.
+Termina con un saludo breve firmado como "Javi". No incluyas asunto ni firma corporativa: se añade sola. Devuelve solo el texto del email.`;
+
+const SISTEMA_RESP_RS = `Eres Javi (Javier Fernández), CEO de Mr Crab 7 · La Buena IA, en Gran Canaria. Redactas la respuesta por email a un cliente sobre una propuesta de Reservus IA (atención de llamadas y WhatsApp con IA, reservas, confirmaciones por SMS y email, app móvil, carta con IA y QR).
+Estilo: español de España, cercano y profesional, frases cortas, sin relleno ni tecnicismos (nada de API ni jerga técnica). Respondes exactamente a lo que pregunta o plantea el cliente, con los datos reales de la propuesta. Habla siempre de Reservus IA, nunca de "empleados de IA".
+No inventes precios, plazos ni condiciones que no estén en la propuesta; si hace falta algo que no sabes, propón comentarlo en una llamada o reunión. Si pide descuento, no lo concedas por tu cuenta: di que lo revisas.
+Si el cliente acepta, explica el siguiente paso: firma de la propuesta, pago del alta y puesta en marcha con nuestro equipo.
 Termina con un saludo breve firmado como "Javi". No incluyas asunto ni firma corporativa: se añade sola. Devuelve solo el texto del email.`;
 
 export default proteger(async (req, res) => {
@@ -175,6 +183,7 @@ export default proteger(async (req, res) => {
       contactoNombre: s(d.contacto, 120), telefono: s(d.telefono, 40), web: s(d.web, 200), ref: s(d.ref, 60),
       precioFinal: Number(d.total) > 0 ? Math.round(Number(d.total) * 100) / 100 : 0,
       empleados: (Array.isArray(d.empleados) ? d.empleados : []).slice(0, 60).map((x) => ({ nombre: s(x, 120), coef: 0 })),
+      producto: ['empleados', 'reservus'].includes(d.producto) ? d.producto : 'otro',
       resumen: s(d.resumen, 1200), borrador: { asunto: s(d.asunto, 200), mensaje: s(d.mensaje, 5000) }, envios: [],
     };
     const reg = { id, creado: new Date().toISOString(), p, crm: { historial: [{ fecha: new Date().toISOString(), tipo: 'creada', texto: `PDF subido: ${nombre}` }] } };
@@ -224,6 +233,8 @@ export default proteger(async (req, res) => {
   reg.crm = reg.crm || {}; reg.crm.historial = reg.crm.historial || [];
   const p = reg.p || {};
   const ult = (p.envios || [])[p.envios?.length - 1];
+  const esReservus = p.producto === 'reservus';
+  const ccSeguimiento = p.producto === 'empleados' || (!esReservus && !p.externo) ? CC_EMPLEADOS : [];
 
   if (b.op === 'detalle') {
     if (cfg && await refrescar(reg, cfg)) await guardarRegistro(reg);
@@ -305,14 +316,19 @@ export default proteger(async (req, res) => {
   if (b.op === 'ia-respuesta') {
     const ultResp = (reg.crm.respuestas || []).slice(-1)[0];
     const mensaje = String(b.mensaje || ultResp?.texto || '').trim();
-    const contexto = `Cliente: ${p.razon || p.cliente} (${p.cliente || ''})
+    const contextoRs = esReservus ? `Cliente: ${p.razon || p.cliente} (${p.cliente || ''})
+Propuesta ${p.ref || ''} de Reservus IA: plan ${p.planRs || 'profesional'}, modalidad ${p.modalidad === 'sinalta' ? 'sin alta (12 meses de permanencia, sin garantía)' : 'con alta (sin permanencia, 30 días de garantía)'}.
+${p.resumenRs || ''}
+Email enviado: ${ult ? `«${ult.asunto}»\n${String(ult.mensaje || '').slice(0, 2500)}` : '-'}
+Historial de respuestas previas del cliente:\n${(reg.crm.respuestas || []).slice(-4).map((r) => `- ${r.fecha?.slice(0, 10)}: ${r.texto.slice(0, 800)}`).join('\n') || '-'}` : '';
+    const contexto = contextoRs || `Cliente: ${p.razon || p.cliente} (${p.cliente || ''})
 Propuesta ${p.ref || ''}: ${(p.empleados || []).length} empleados de inteligencia artificial. Total implantación ${totalDe(p).toLocaleString('es-ES')} € + IGIC, 50 % a la firma y 50 % al terminar, sin permanencia. Plataforma: plan ${p.plan || 'autonomos'} (se contrata aparte).
 Puestos: ${(p.empleados || []).map((e) => e.nombre).join(', ')}.
 ${p.ajusteLabel && p.precioFinal ? 'Precio especial con descuento: ' + p.ajusteLabel + '.' : ''}
 Email enviado: ${ult ? `«${ult.asunto}»\n${String(ult.mensaje || '').slice(0, 2500)}` : '-'}
 Historial de respuestas previas del cliente:\n${(reg.crm.respuestas || []).slice(-4).map((r) => `- ${r.fecha?.slice(0, 10)}: ${r.texto.slice(0, 800)}`).join('\n') || '-'}`;
     const usuario = `${contexto}\n\nMensaje del cliente al que hay que responder:\n"""\n${mensaje || '(sin respuesta todavía: redacta un seguimiento amable para saber si ha podido ver la propuesta)'}\n"""\n${b.instrucciones ? 'Indicaciones de Javi para la respuesta: ' + String(b.instrucciones).slice(0, 1000) : ''}`;
-    const texto = await preguntar({ modelo: 'anthropic/claude-sonnet-5.5', sistema: SISTEMA_RESP, usuario, maxTokens: 1200, temperatura: 0.5 });
+    const texto = await preguntar({ modelo: 'anthropic/claude-sonnet-5.5', sistema: esReservus ? SISTEMA_RESP_RS : SISTEMA_RESP, usuario, maxTokens: 1200, temperatura: 0.5 });
     return json(res, 200, { texto: texto.trim() });
   }
 
@@ -324,7 +340,7 @@ Historial de respuestas previas del cliente:\n${(reg.crm.respuestas || []).slice
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json(res, 400, { error: 'El email del cliente no es válido' });
     if (!b.asunto || String(b.mensaje || '').trim().length < 5) return json(res, 400, { error: 'Falta el asunto o el texto del email' });
     const pdf = await leerPdf(reg.id);
-    const r = await enviarPropuestaGhl(cfg, { email, contacto: b.contacto, empresa: p.razon || p.cliente, telefono: p.telefono, web: p.web, asunto: b.asunto, mensaje: b.mensaje, pdf, nombreArchivo: p.externo.nombre || 'propuesta.pdf', importe: totalDe(p) });
+    const r = await enviarPropuestaGhl(cfg, { email, contacto: b.contacto, empresa: p.razon || p.cliente, telefono: p.telefono, web: p.web, asunto: b.asunto, mensaje: b.mensaje, pdf, nombreArchivo: p.externo.nombre || 'propuesta.pdf', importe: totalDe(p), producto: p.producto || 'otro' });
     const fecha = new Date().toISOString();
     p.email = email; if (b.contacto) p.contactoNombre = String(b.contacto).slice(0, 120);
     p.borrador = { asunto: String(b.asunto).slice(0, 200), mensaje: String(b.mensaje).slice(0, 5000) };
@@ -341,7 +357,7 @@ Historial de respuestas previas del cliente:\n${(reg.crm.respuestas || []).slice
     const texto = String(b.texto || '').trim(); if (texto.length < 5) return json(res, 400, { error: 'Escribe la respuesta' });
     const ultResp = (reg.crm.respuestas || []).slice(-1)[0];
     const asunto = b.asunto || (ultResp?.asunto ? (/^re:/i.test(ultResp.asunto) ? ultResp.asunto : 'Re: ' + ultResp.asunto) : 'Re: ' + (ult.asunto || 'Propuesta'));
-    const r = await enviarEmail(cfg, { contactId: ult.contactId, asunto, texto, replyMessageId: ultResp?.id });
+    const r = await enviarEmail(cfg, { contactId: ult.contactId, asunto, texto, replyMessageId: ultResp?.id, cc: ccSeguimiento });
     reg.crm.historial.push({ fecha: new Date().toISOString(), tipo: 'respuesta', texto: texto.slice(0, 2000), messageId: r.messageId });
     (reg.crm.respuestas || []).forEach((x) => (x.leida = true));
     await guardarRegistro(reg);
@@ -353,7 +369,7 @@ Historial de respuestas previas del cliente:\n${(reg.crm.respuestas || []).slice
     const texto = String(b.texto || ult.mensaje || '').trim();
     if (!texto) return json(res, 400, { error: 'Falta el texto del email' });
     const adjuntos = ult.pdfUrl ? [ult.pdfUrl] : [];
-    const r = await enviarEmail(cfg, { contactId: ult.contactId, asunto, texto, adjuntos, demo: true });
+    const r = await enviarEmail(cfg, { contactId: ult.contactId, asunto, texto, adjuntos, demo: !esReservus, cc: ccSeguimiento });
     const nuevo = { fecha: new Date().toISOString(), para: ult.para, asunto, mensaje: texto, contactId: ult.contactId, conversationId: r.conversationId || ult.conversationId, messageId: r.messageId, pdfUrl: ult.pdfUrl, reenvio: true };
     p.envios.push(nuevo);
     reg.crm.historial.push({ fecha: nuevo.fecha, tipo: 'envio', texto: `Reenviada a ${ult.para || ''}${adjuntos.length ? ' con el PDF' : ''}` });

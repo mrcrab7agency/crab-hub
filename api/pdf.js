@@ -3,6 +3,7 @@ import chromium from '@sparticuz/chromium';
 import puppeteer from 'puppeteer-core';
 import { proteger, cuerpo } from './_lib/core.js';
 import { construirHTML } from './_lib/plantilla.js';
+import { construirHTMLReservus } from './_lib/plantilla-reservus.js';
 
 export const config = { api: { bodyParser: { sizeLimit: '4mb' } } };
 
@@ -18,9 +19,10 @@ async function logoComoData(url) {
 
 export default proteger(async (req, res) => {
   const p = cuerpo(req);
-  if (!p.empleados?.length) { res.status(400).json({ error: 'Añade al menos un empleado de IA' }); return; }
+  const reservus = p.producto === 'reservus';
+  if (!reservus && !p.empleados?.length) { res.status(400).json({ error: 'Añade al menos un empleado de IA' }); return; }
   try { p.logo = await logoComoData(p.logo); } catch { p.logo = ''; }
-  const html = construirHTML(p);
+  const html = reservus ? construirHTMLReservus(p) : construirHTML(p);
   const browser = await puppeteer.launch({ args: chromium.args, executablePath: await chromium.executablePath(), headless: true });
   try {
     const page = await browser.newPage();
@@ -58,7 +60,7 @@ export default proteger(async (req, res) => {
       document.querySelectorAll('.rng').forEach((el) => { el.textContent = dgs > 1 ? `las páginas 2 a ${dgs + 1}` : 'la página 2'; });
     });
     const pdf = await page.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true });
-    const nombre = `Precios_Empleados_IA_${String(p.cliente || 'Cliente').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '')}_${new Date().toISOString().slice(0, 10)}.pdf`;
+    const nombre = `${reservus ? 'Propuesta_Reservus_IA' : 'Precios_Empleados_IA'}_${String(p.cliente || 'Cliente').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '')}_${new Date().toISOString().slice(0, 10)}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${nombre}"`);
     res.setHeader('X-Nombre-Archivo', nombre);

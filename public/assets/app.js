@@ -356,9 +356,11 @@
 
   // ---------- vistas ----------
   function vista() {
-    const v = ['#ajustes', '#seguimiento'].includes(location.hash) ? location.hash.slice(1) : 'propuestas';
-    $('#propuestas').hidden = v !== 'propuestas'; $('#ajustes').hidden = v !== 'ajustes'; $('#seguimiento').hidden = v !== 'seguimiento';
-    $('#navPropuestas').classList.toggle('on', v === 'propuestas'); $('#navAjustes').classList.toggle('on', v === 'ajustes'); $('#navSeguimiento').classList.toggle('on', v === 'seguimiento');
+    const v = ['#ajustes', '#seguimiento', '#reservus'].includes(location.hash) ? location.hash.slice(1) : 'propuestas';
+    for (const [k, nav] of [['propuestas', 'navPropuestas'], ['ajustes', 'navAjustes'], ['seguimiento', 'navSeguimiento'], ['reservus', 'navReservus']]) {
+      $('#' + k).hidden = v !== k; $('#' + nav).classList.toggle('on', v === k);
+      if (v === k) $('#' + nav).setAttribute('aria-current', 'page'); else $('#' + nav).removeAttribute('aria-current');
+    }
     if (v !== 'seguimiento') cerrarDrawer();
     if (v === 'ajustes') { cargarAjustes(); estadoHolded(); }
     if (v === 'seguimiento') cargarCrm(true);
@@ -411,9 +413,10 @@
   });
 
   // ---------- enviar por GHL ----------
+  let modoEnvio = 'empleados';
   function abrirModal() {
     if (!ultimoPdf) return toast('Genera primero el PDF', true);
-    leerCampos();
+    leerCampos(); modoEnvio = 'empleados';
     $('#mgPara').value = estado.email || '';
     $('#mgNombre').value = estado.contactoNombre || '';
     $('#mgAsunto').value = `Propuesta de empleados de inteligencia artificial · ${estado.cliente}`;
@@ -432,11 +435,16 @@
     const para = $('#mgPara').value.trim();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(para)) return toast('Revisa el email del cliente', true);
     const b = $('#mgEnviar'); cargando(b, true, 'Enviando…');
+    if (modoEnvio === 'reservus') {
+      try { await enviarRs(para); cerrarModal(); toast('Propuesta de Reservus IA enviada a ' + para); }
+      catch (e) { toast(e.message, true); } finally { cargando(b, false); }
+      return;
+    }
     try {
       const total = estado.precioFinal ?? Math.round(estado.empleados.reduce((a, e) => a + 1000 * e.coef, 0));
       const d = await api('/api/enviar-ghl', {
         email: para, contacto: $('#mgNombre').value.trim(), empresa: estado.razon || estado.cliente, web: estado.web,
-        asunto: $('#mgAsunto').value, mensaje: $('#mgMensaje').value, importe: total,
+        producto: 'empleados', asunto: $('#mgAsunto').value, mensaje: $('#mgMensaje').value, importe: total,
         pdf: await aBase64(ultimoPdf.blob), nombreArchivo: ultimoPdf.nombre,
       });
       estado.email = para; estado.contactoNombre = $('#mgNombre').value.trim(); $('#email').value = para;
@@ -604,7 +612,7 @@
         <div class="f-cli"><b>${esc(x.cliente || 'Sin nombre')}</b><small>${esc(sub || (x.externo ? 'PDF subido' : ''))}</small></div>
         <div class="f-etapa"><span class="est ${x.estado}">${ETIQ[x.estado] || x.estado}</span>${pista(n, x.estado === 'perdida')}</div>
         <div class="f-seg">${esc(seg)}${x.noLeidas ? `<span class="nuevo">${x.noLeidas} nueva${x.noLeidas > 1 ? 's' : ''}</span>` : ''}</div>
-        <div class="f-imp"><b>${eurN(x.total)}<small> €</small></b><small>${x.externo ? 'Propuesta en PDF' : `${x.empleados} empleado${x.empleados === 1 ? '' : 's'} IA`}</small></div>
+        <div class="f-imp"><b>${eurN(x.total)}<small> €</small></b>${x.producto === 'reservus' ? `<small class="rs">Reservus IA${x.planRs ? ' · ' + esc((PLANES_RS[x.planRs] || {}).nombre || '') : ''} · 1.er año</small>` : `<small>${x.externo ? 'Propuesta en PDF' : `${x.empleados} empleado${x.empleados === 1 ? '' : 's'} IA`}</small>`}</div>
         <div class="f-act">${hace(x.actividad)}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></div>
       </article>`;
     }).join('');
@@ -645,9 +653,12 @@
     const r = crm.abierto; if (!r) return;
     const p = r.p || {}; const c = r.crm || {}; const envios = p.envios || []; const ult = envios[envios.length - 1];
     const it = { cliente: p.cliente, logo: r.logoUrl || '' };
-    $('#dwRef').textContent = [p.ref, p.externo ? 'Propuesta en PDF' : 'Generada en Crab Hub'].filter(Boolean).join(' · ');
+    const esRs = p.producto === 'reservus' && !p.externo;
+    $('#dwRef').textContent = [p.ref, p.externo ? 'Propuesta en PDF' : esRs ? 'Reservus IA · generada en Crab Hub' : 'Generada en Crab Hub'].filter(Boolean).join(' · ');
     $('#dwTitulo').innerHTML = `${esc(p.cliente || 'Sin nombre')} <span class="est ${r.estado}">${ETIQ[r.estado] || r.estado}</span>`;
-    $('#dwSub').textContent = [p.razon && p.razon !== p.cliente ? p.razon : '', p.email || ult?.para || '', p.externo ? '' : `${(p.empleados || []).length} empleados IA`].filter(Boolean).join(' · ');
+    $('#dwSub').textContent = [p.razon && p.razon !== p.cliente ? p.razon : '', p.email || ult?.para || '', p.externo ? '' : esRs ? `Reservus IA · plan ${(PLANES_RS[p.planRs] || PLANES_RS.profesional).nombre}` : `${(p.empleados || []).length} empleados IA`].filter(Boolean).join(' · ');
+    $('#dwTotal').nextElementSibling.textContent = esRs ? '1.er año + impuestos' : '+ impuestos';
+    $('#dwAcademia').hidden = esRs;
     $('#dwTotal').textContent = eur(r.total || 0);
     $('#dwIni').textContent = iniciales(p.cliente);
     $('#dwLogoBtn').classList.toggle('sin', !it.logo);
@@ -703,6 +714,7 @@
   const recargarFicha = async () => { const id = crm.abierto?.id; await cargarCrm(false); if (id) await abrirDrawer(id); };
   $('#dwAbrir').addEventListener('click', () => {
     const p = crm.abierto?.p; if (!p) return;
+    if (p.producto === 'reservus' && !p.externo) { cerrarDrawer(); abrirRsDesdeCrm(p); toast('Propuesta de ' + (p.cliente || '') + ' abierta en Reservus IA'); return; }
     const local = todas().find((x) => x.id === p.id);
     estado = { ...nuevoEstado(), ...p, ...(local ? { logos: local.logos, logo: local.logo || p.logo } : {}), envios: p.envios };
     pintarCampos(); $('#hallazgos').hidden = true; $('#visor').hidden = true; $('#pdfActions').hidden = true;
@@ -717,8 +729,8 @@
       let r;
       if (p.externo) r = await api('/api/crm', { op: 'pdf', id: p.id }, true);
       else {
-        const local = todas().find((x) => x.id === p.id);
-        const datos = { ...nuevoEstado(), ...p, ...(local?.logo ? { logo: local.logo } : {}), logos: undefined, envios: undefined };
+        const local = (p.producto === 'reservus' ? todasRs() : todas()).find((x) => x.id === p.id);
+        const datos = { ...(p.producto === 'reservus' ? nuevoRs() : nuevoEstado()), ...p, ...(local?.logo ? { logo: local.logo } : {}), logos: undefined, envios: undefined };
         datos.para = datos.para || (datos.razon || datos.cliente) + (datos.cif ? ' · CIF ' + datos.cif : '');
         r = await api('/api/pdf', datos, true);
       }
@@ -816,8 +828,9 @@
   $('#dwNota').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#dwNotaOk').click(); });
   $('#dwReenviar').addEventListener('click', () => {
     const p = crm.abierto?.p || {}; const ult = (p.envios || []).slice(-1)[0] || {};
-    $('#rvAsunto').value = ult.asunto || `Propuesta de empleados de inteligencia artificial · ${p.cliente || ''}`;
-    $('#rvTexto').value = ult.mensaje || `Hola,\n\nTe reenvío la propuesta de empleados de inteligencia artificial para ${p.cliente || 'vosotros'} por si se quedó perdida entre los correos.\n\nCualquier duda me dices y lo vemos.\n\nUn saludo,`;
+    const nombreProd = p.producto === 'reservus' ? 'Reservus IA' : 'empleados de inteligencia artificial';
+    $('#rvAsunto').value = ult.asunto || `Propuesta de ${nombreProd} · ${p.cliente || ''}`;
+    $('#rvTexto').value = ult.mensaje || `Hola,\n\nTe reenvío la propuesta de ${nombreProd} para ${p.cliente || 'vosotros'} por si se quedó perdida entre los correos.\n\nCualquier duda me dices y lo vemos.\n\nUn saludo,`;
     $('#rvAdj').textContent = ult.pdfUrl ? 'Se adjunta de nuevo el PDF de la propuesta.' : 'No tengo el PDF guardado de ese envío: sale solo el texto. Si quieres adjuntarlo, ábrela en el editor y envíala desde allí.';
     $('#dwReenvio').hidden = false; $('#rvTexto').focus();
   });
@@ -845,6 +858,239 @@
     if (!confirm(`¿Enviar la respuesta a ${ult.para || 'el cliente'}?`)) return;
     if (await accionCrm($('#rsEnviar'), { op: 'responder', texto }, 'Enviando…', 'Respuesta enviada')) { $('#rsTexto').value = ''; $('#rsInstr').value = ''; recargarFicha(); }
   });
+
+  // ---------- Propuestas Reservus IA ----------
+  const PLANES_RS = {
+    esencial: { nombre: 'Esencial', alta: 990, mensual: 79, sinAlta: 179, minutos: 200, sms: 300 },
+    profesional: { nombre: 'Profesional', alta: 1290, mensual: 149, sinAlta: 249, minutos: 500, sms: 800, rec: true },
+    premium: { nombre: 'Premium', alta: 1590, mensual: 249, sinAlta: 349, minutos: 1000, sms: 1600 },
+  };
+  const EXTRAS_RS = {
+    clientes: { nombre: 'Gestión de clientes', precio: 59, tipo: 'mes', desc: 'Ficha con historial y mensajes automáticos (cumpleaños, fechas especiales, clientes que no vuelven).' },
+    cm: { nombre: 'Community manager', precio: 99, tipo: 'mes', desc: 'Publicaciones y vídeos para Instagram y Facebook con calendario.' },
+    web: { nombre: 'Web con dominio propio', precio: 990, tipo: 'unico', desc: 'Dominio, hosting y correo el primer año; después 29 €/mes.' },
+  };
+  const CLAVE_RS = 'crabhub.reservus.v1';
+  const camposRs = { cliente: 'rsCliente', web: 'rsWeb', email: 'rsEmail', cif: 'rsCif', razon: 'rsRazon', para: 'rsPara', actividad: 'rsActividad', alta: 'rsAlta', mensual: 'rsMensual', precioAlta: 'rsPrecioAlta', pagoAlta: 'rsPagoAlta', validez: 'rsValidez', ref: 'rsRef', ajusteLabel: 'rsAjusteLabel', titular: 'rsTitular', intro: 'rsIntro', nota: 'rsNota' };
+  const NUM_RS = ['alta', 'mensual', 'precioAlta'];
+  let rs = nuevoRs();
+  let rsPdf = null, rsPdfUrl = null;
+  function nuevoRs() {
+    return { id: 'r' + Date.now(), producto: 'reservus', planRs: 'profesional', modalidad: 'alta', alta: 1290, mensual: 149, precioAlta: null, pagoAlta: 'unico', validezDias: 15, extras: {}, logo: '', logos: [], logoFondo: false, logoAlto: 56, acento: '#0073ff', empleados: [] };
+  }
+  const n2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
+  function calcRs(p = rs) {
+    const plan = PLANES_RS[p.planRs] || PLANES_RS.profesional;
+    const conAlta = p.modalidad !== 'sinalta';
+    const altaTarifa = conAlta ? n2(p.alta ?? plan.alta) : 0;
+    const altaFinal = conAlta && p.precioAlta != null && p.precioAlta !== '' ? n2(p.precioAlta) : altaTarifa;
+    const dto = n2(altaFinal - altaTarifa);
+    const cuota = n2(p.mensual ?? (conAlta ? plan.mensual : plan.sinAlta));
+    const ex = Object.entries(EXTRAS_RS).filter(([k]) => p.extras?.[k]?.on).map(([k, d]) => ({ k, ...d, precio: n2(p.extras[k].precio ?? d.precio) }));
+    const unico = ex.filter((e) => e.tipo === 'unico').reduce((a, e) => a + e.precio, 0);
+    const mesEx = ex.filter((e) => e.tipo === 'mes').reduce((a, e) => a + e.precio, 0);
+    const inicial = n2(altaFinal + unico), mensual = n2(cuota + mesEx);
+    return { plan, conAlta, altaTarifa, altaFinal, dto, cuota, ex, unico, inicial, mensual, primer: n2(inicial + 12 * mensual) };
+  }
+  function leerRs() {
+    for (const [k, id] of Object.entries(camposRs)) rs[k] = $('#' + id).value;
+    for (const k of NUM_RS) rs[k] = rs[k] === '' ? null : Number(rs[k]);
+    rs.validezDias = Number(rs.validez) || 15;
+    rs.modalidad = document.querySelector('input[name=rsModalidad]:checked')?.value || 'alta';
+  }
+  function pintarRs() {
+    for (const [k, id] of Object.entries(camposRs)) {
+      let v = rs[k];
+      if (k === 'validez') v = rs.validezDias || 15;
+      if (k === 'pagoAlta') v = rs.pagoAlta || 'unico';
+      $('#' + id).value = v ?? '';
+    }
+    document.querySelectorAll('input[name=rsModalidad]').forEach((r) => (r.checked = r.value === (rs.modalidad || 'alta')));
+    $('#rsLogoFondo').checked = !!rs.logoFondo; $('#rsLogoAlto').value = rs.logoAlto || 56; $('#rsAcento').value = rs.acento || '#0073ff';
+    $('#rsAlta').disabled = rs.modalidad === 'sinalta'; $('#rsPrecioAlta').disabled = rs.modalidad === 'sinalta';
+    pintarPlanesRs(); pintarExtrasRs(); pintarLogoRs(); pintarCandRs(); resumenRs();
+  }
+  function pintarPlanesRs() {
+    const sinAlta = rs.modalidad === 'sinalta';
+    $('#rsPlanes').innerHTML = Object.entries(PLANES_RS).map(([k, x]) => `<button type="button" role="radio" aria-checked="${rs.planRs === k}" class="rs-plan${rs.planRs === k ? ' on' : ''}" data-plan="${k}">${x.rec ? '<span class="rec">Recomendado</span>' : ''}<b>${x.nombre}</b>
+      <span class="pr">${sinAlta ? eur(x.sinAlta) : eur(x.alta)}<small>${sinAlta ? '/mes' : ' alta'}</small></span>
+      <span class="mt">${sinAlta ? '12 meses de permanencia' : `+ ${eur(x.mensual)}/mes · sin permanencia`}</span>
+      <span class="mt">${x.minutos.toLocaleString('es-ES', { useGrouping: 'always' })} min de voz · ${x.sms.toLocaleString('es-ES', { useGrouping: 'always' })} SMS al mes</span></button>`).join('');
+  }
+  function aplicarTarifaRs() {
+    const x = PLANES_RS[rs.planRs] || PLANES_RS.profesional;
+    rs.alta = rs.modalidad === 'sinalta' ? 0 : x.alta;
+    rs.mensual = rs.modalidad === 'sinalta' ? x.sinAlta : x.mensual;
+    $('#rsAlta').value = rs.alta; $('#rsMensual').value = rs.mensual;
+    $('#rsAlta').disabled = rs.modalidad === 'sinalta'; $('#rsPrecioAlta').disabled = rs.modalidad === 'sinalta';
+  }
+  $('#rsPlanes').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-plan]'); if (!b) return;
+    leerRs(); rs.planRs = b.dataset.plan; aplicarTarifaRs(); pintarPlanesRs(); resumenRs(); guardarRs();
+  });
+  document.querySelectorAll('input[name=rsModalidad]').forEach((r) => r.addEventListener('change', () => { leerRs(); aplicarTarifaRs(); pintarPlanesRs(); resumenRs(); guardarRs(); }));
+  $('#rsTarifa').addEventListener('click', () => { leerRs(); aplicarTarifaRs(); resumenRs(); guardarRs(); });
+  function pintarExtrasRs() {
+    const c = $('#rsExtras'); c.innerHTML = '';
+    for (const [k, d] of Object.entries(EXTRAS_RS)) {
+      const v = rs.extras?.[k] || {};
+      const el = document.createElement('label'); el.className = 'rs-ex' + (v.on ? ' on' : '');
+      el.innerHTML = `<input type="checkbox"${v.on ? ' checked' : ''} aria-label="${esc(d.nombre)}"><span><b>${esc(d.nombre)}</b><small>${esc(d.desc)}</small></span><span class="px"><input class="input sm" type="number" min="0" step="1" value="${v.precio ?? d.precio}" aria-label="Precio de ${esc(d.nombre)}"><span>${d.tipo === 'mes' ? '€/mes' : '€'}</span></span>`;
+      const [chk, px] = el.querySelectorAll('input');
+      chk.onchange = () => { rs.extras = rs.extras || {}; rs.extras[k] = { ...(rs.extras[k] || {}), on: chk.checked, precio: Number(px.value) || d.precio }; el.classList.toggle('on', chk.checked); resumenRs(); guardarRs(); };
+      px.oninput = () => { rs.extras = rs.extras || {}; rs.extras[k] = { ...(rs.extras[k] || {}), on: chk.checked, precio: Number(px.value) || 0 }; resumenRs(); guardarRs(); };
+      c.append(el);
+    }
+  }
+  function resumenRs() {
+    const c = calcRs();
+    $('#rsRPlan').textContent = `${c.plan.nombre} · ${c.conAlta ? 'con alta' : 'sin alta'}`;
+    $('#rsRAlta').innerHTML = c.dto < -5 ? `<span class="tach">${eur(c.altaTarifa)}</span>${eur(c.altaFinal)}` : eur(c.altaFinal);
+    $('#rsRDtoRow').hidden = !(c.dto < -5);
+    $('#rsRDtoLbl').textContent = $('#rsAjusteLabel').value || 'Descuento en el alta';
+    $('#rsRDto').textContent = eur(c.dto);
+    $('#rsRUnico').textContent = eur(c.unico);
+    $('#rsRInicial').textContent = eur(c.inicial);
+    $('#rsRMensual').textContent = eur(c.mensual) + '/mes';
+    $('#rsRTotal').textContent = eur(c.primer);
+  }
+  Object.values(camposRs).forEach((id) => { $('#' + id).addEventListener('input', () => { leerRs(); resumenRs(); }); $('#' + id).addEventListener('change', () => { leerRs(); guardarRs(); }); });
+  $('#rsLanzamiento').addEventListener('click', () => {
+    leerRs(); if (rs.modalidad === 'sinalta') return toast('La oferta de lanzamiento es sobre el alta', true);
+    rs.precioAlta = Math.round((rs.alta ?? calcRs().altaTarifa) * 0.7); $('#rsPrecioAlta').value = rs.precioAlta;
+    if (!$('#rsAjusteLabel').value) { rs.ajusteLabel = 'Oferta de lanzamiento: 30 % de descuento en el alta, a cambio de un vídeo con su experiencia'; $('#rsAjusteLabel').value = rs.ajusteLabel; }
+    resumenRs(); guardarRs(); toast('Aplicado −30 % en el alta');
+  });
+
+  // logo
+  function pintarLogoRs() {
+    const box = $('#rsLogoPrev'); box.style.setProperty('--acc', rs.acento || '#0073ff'); box.innerHTML = '';
+    if (!rs.logo) { box.innerHTML = '<span>Sin logo</span>'; return; }
+    const img = new Image(); img.src = ver(rs.logo); img.alt = 'Logo del cliente';
+    img.style.height = Math.round((rs.logoAlto || 56) * (rs.logoFondo ? 0.75 : 1)) + 'px';
+    img.onerror = () => { box.innerHTML = '<span>No se puede mostrar este logo</span>'; };
+    if (rs.logoFondo) { const s = document.createElement('span'); s.className = 'clbox'; s.append(img); box.append(s); } else box.append(img);
+  }
+  function pintarCandRs() {
+    const c = $('#rsCands'); c.innerHTML = '';
+    for (const u of rs.logos || []) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'cand' + (u === rs.logo ? ' on' : ''); b.title = 'Usar este logo';
+      const img = new Image(); img.src = ver(u); img.alt = ''; img.onerror = () => b.remove();
+      b.append(img); b.onclick = () => { rs.logo = u; pintarLogoRs(); pintarCandRs(); guardarRs(); }; c.append(b);
+    }
+  }
+  $('#rsSubirLogo').addEventListener('change', (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    if (f.size > 2.5e6) return toast('El logo pesa demasiado (máx. 2,5 MB)', true);
+    const rd = new FileReader();
+    rd.onload = () => { rs.logo = rd.result; rs.logos = [rd.result, ...(rs.logos || []).filter((x) => !x.startsWith('data:'))]; pintarLogoRs(); pintarCandRs(); guardarRs(); };
+    rd.readAsDataURL(f);
+  });
+  $('#rsLogoFondo').addEventListener('change', (e) => { rs.logoFondo = e.target.checked; pintarLogoRs(); guardarRs(); });
+  $('#rsLogoAlto').addEventListener('input', (e) => { rs.logoAlto = Number(e.target.value); pintarLogoRs(); });
+  $('#rsAcento').addEventListener('input', (e) => { rs.acento = e.target.value; pintarLogoRs(); guardarRs(); });
+
+  // buscar datos del cliente
+  $('#rsBuscar').addEventListener('click', async () => {
+    leerRs();
+    if (!rs.web && !rs.cliente) return toast('Escribe al menos la web o el nombre del cliente', true);
+    const btn = $('#rsBuscar'); cargando(btn, true, 'Buscando…'); $('#rsEstadoBuscar').textContent = 'Leyendo su web y buscando en internet (unos 20 s)';
+    try {
+      const d = await api('/api/buscar', { web: rs.web, nombre: rs.cliente, cif: rs.cif });
+      const ia = d.ia || {};
+      const poner = (id, v) => { if (v && !$('#' + id).value.trim()) $('#' + id).value = v; };
+      poner('rsCliente', ia.nombre || (d.titulo || '').replace(/^[^\p{L}\p{N}]+/u, '').split(/[|\-–·]/)[0].trim() || d.nombre);
+      poner('rsWeb', d.web); poner('rsRazon', ia.razon || d.razon); poner('rsCif', (ia.cif || d.cif || '').replace(/[-\s]/g, ''));
+      poner('rsEmail', ia.email || d.emails?.[0]); poner('rsActividad', ia.actividad || d.descripcion);
+      leerRs();
+      rs.direccion = ia.direccion || d.direccion || ''; rs.telefono = ia.telefono || d.telefonos?.[0] || '';
+      if (/^#[0-9a-f]{6}$/i.test(d.color || '') && luz(d.color) < 0.75 && luz(d.color) > 0.08) rs.acento = d.color;
+      rs.logos = [...new Set([...(rs.logos || []).filter((x) => x.startsWith('data:')), ...(d.logos || [])])];
+      if (!rs.logo && rs.logos.length) rs.logo = rs.logos[0];
+      if (!rs.ref) { rs.ref = refDe(rs.cliente).replace(/^MC7-/, 'MC7-RIA-'); $('#rsRef').value = rs.ref; }
+      $('#rsAcento').value = rs.acento; pintarLogoRs(); pintarCandRs(); guardarRs();
+      $('#rsEstadoBuscar').textContent = d.avisos?.length ? d.avisos.join(' ') : 'Datos encontrados. Revisa y corrige lo que haga falta.';
+    } catch (e) { toast(e.message, true); $('#rsEstadoBuscar').textContent = ''; }
+    finally { cargando(btn, false); }
+  });
+
+  // guardado local + seguimiento
+  function todasRs() { try { return JSON.parse(localStorage.getItem(CLAVE_RS) || '[]'); } catch { return []; } }
+  function datosRs() {
+    const c = calcRs();
+    return { ...rs, valorRs: c.primer, precioFinal: undefined,
+      resumenRs: `Plan ${c.plan.nombre} (${c.plan.minutos} min de voz y ${c.plan.sms} SMS al mes). Alta ${eur(c.altaFinal)}${c.dto < -5 ? ` (tarifa ${eur(c.altaTarifa)}, ${rs.ajusteLabel || 'descuento especial'})` : ''} + IGIC. Cuota ${eur(c.mensual)}/mes + IGIC${c.ex.length ? ' con extras: ' + c.ex.map((e) => `${e.nombre} ${eur(e.precio)}${e.tipo === 'mes' ? '/mes' : ''}`).join(', ') : ''}. Primer año ${eur(c.primer)} + IGIC.` };
+  }
+  function guardarRs() {
+    try { const l = todasRs().filter((p) => p.id !== rs.id); l.unshift({ ...rs, editado: new Date().toISOString() }); localStorage.setItem(CLAVE_RS, JSON.stringify(l.slice(0, 40))); } catch {}
+    pintarGuardadasRs();
+    sincronizar(datosRs());
+  }
+  function pintarGuardadasRs() {
+    $('#rsGuardadas').innerHTML = '<option value="">Propuestas guardadas…</option>' + todasRs().filter((p) => p.cliente).map((p) => `<option value="${p.id}">${esc(p.cliente)} · ${new Date(p.editado).toLocaleDateString('es-ES')}</option>`).join('');
+  }
+  const limpiarVistaRs = () => { $('#rsVisor').hidden = true; $('#rsPdfActions').hidden = true; $('#rsEnviado').hidden = true; rsPdf = null; };
+  $('#rsGuardadas').addEventListener('change', (e) => {
+    const p = todasRs().find((x) => x.id === e.target.value); if (!p) return;
+    rs = { ...nuevoRs(), ...p }; pintarRs(); limpiarVistaRs(); e.target.value = ''; toast('Propuesta de ' + p.cliente + ' cargada');
+  });
+  $('#rsNueva').addEventListener('click', () => { rs = nuevoRs(); pintarRs(); aplicarTarifaRs(); limpiarVistaRs(); $('#rsEstadoBuscar').textContent = ''; $('#rsCliente').focus(); });
+
+  // PDF
+  async function pdfRs(datos) {
+    const p = { ...datos, logos: undefined, envios: undefined };
+    p.para = p.para || (p.razon || p.cliente) + (p.cif ? ' · CIF ' + p.cif : '');
+    return api('/api/pdf', p, true);
+  }
+  $('#rsPdf').addEventListener('click', async () => {
+    leerRs();
+    if (!rs.cliente) return toast('Falta el nombre del cliente', true);
+    if (!rs.ref) { rs.ref = refDe(rs.cliente).replace(/^MC7-/, 'MC7-RIA-'); $('#rsRef').value = rs.ref; }
+    const btn = $('#rsPdf'); cargando(btn, true, 'Generando PDF…'); $('#rsEstadoPdf').textContent = 'Maquetando en el servidor (unos segundos)';
+    try {
+      const r = await pdfRs(rs);
+      const nombre = r.headers.get('X-Nombre-Archivo') || 'propuesta-reservus-ia.pdf';
+      const blob = await r.blob(); rsPdf = { blob, nombre };
+      if (rsPdfUrl) URL.revokeObjectURL(rsPdfUrl);
+      rsPdfUrl = URL.createObjectURL(blob);
+      $('#rsPdfFrame').src = rsPdfUrl; $('#rsVisor').hidden = false;
+      const a = $('#rsDescargar'); a.href = rsPdfUrl; a.download = nombre; $('#rsPdfActions').hidden = false; $('#rsEnviado').hidden = true;
+      $('#rsEstadoPdf').textContent = 'PDF listo y propuesta guardada.';
+      rs.generado = new Date().toISOString(); guardarRs();
+      $('#rsVisor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (e) { toast(e.message, true); $('#rsEstadoPdf').textContent = ''; }
+    finally { cargando(btn, false); }
+  });
+  $('#rsCerrarVisor').addEventListener('click', () => ($('#rsVisor').hidden = true));
+  $('#rsGhl').addEventListener('click', () => {
+    if (!rsPdf) return toast('Genera primero el PDF', true);
+    leerRs(); modoEnvio = 'reservus';
+    $('#mgPara').value = rs.email || ''; $('#mgNombre').value = rs.contactoNombre || '';
+    $('#mgAsunto').value = `Propuesta de Reservus IA · ${rs.cliente}`;
+    $('#mgMensaje').value = `Hola${rs.contactoNombre ? ' ' + rs.contactoNombre : ''},\n\nTe adjunto la propuesta de Reservus IA para ${rs.cliente}: la inteligencia artificial atiende vuestras llamadas y el WhatsApp a cualquier hora, en el idioma de cada cliente, y deja cada reserva apuntada con su confirmación.\n\nEn el PDF tienes el plan, lo que incluye, la inversión y las condiciones. Si te encaja, lo ponemos en marcha. Cualquier duda, me dices y lo vemos.\n\nUn saludo,`;
+    $('#mgAdjunto').textContent = 'Adjunto: ' + rsPdf.nombre;
+    $('#modalGhl').hidden = false; $('#mgPara').focus();
+  });
+  async function enviarRs(para) {
+    const c = calcRs();
+    const d = await api('/api/enviar-ghl', {
+      producto: 'reservus', email: para, contacto: $('#mgNombre').value.trim(), empresa: rs.razon || rs.cliente, web: rs.web, telefono: rs.telefono || '',
+      asunto: $('#mgAsunto').value, mensaje: $('#mgMensaje').value, importe: c.primer,
+      pdf: await aBase64(rsPdf.blob), nombreArchivo: rsPdf.nombre,
+    });
+    rs.email = para; rs.contactoNombre = $('#mgNombre').value.trim(); $('#rsEmail').value = para;
+    rs.envios = [...(rs.envios || []), { fecha: new Date().toISOString(), para, asunto: $('#mgAsunto').value, mensaje: $('#mgMensaje').value, contactId: d.contactId, conversationId: d.conversationId, messageId: d.messageId, pdfUrl: d.pdfUrl || '' }];
+    guardarRs();
+    const enlace = d.conversationId ? `https://app.gohighlevel.com/v2/location/${encodeURIComponent(d.locationId)}/conversations/conversations/${encodeURIComponent(d.conversationId)}` : '';
+    $('#rsEnviado').innerHTML = `<b>Enviada por GHL</b><span>${d.pasos.map(esc).join(' · ')}</span>${enlace ? `<a href="${enlace}" target="_blank" rel="noopener">Ver la conversación en GHL ↗</a>` : ''}`;
+    $('#rsEnviado').hidden = false;
+  }
+  const abrirRsDesdeCrm = (p) => {
+    const local = todasRs().find((x) => x.id === p.id);
+    rs = { ...nuevoRs(), ...p, ...(local ? { logos: local.logos, logo: local.logo || p.logo } : {}), envios: p.envios };
+    pintarRs(); limpiarVistaRs(); location.hash = '#reservus';
+  };
+  pintarRs(); aplicarTarifaRs(); pintarGuardadasRs();
 
   // ---------- inicio ----------
   pintarCampos(); pintarGuardadas();

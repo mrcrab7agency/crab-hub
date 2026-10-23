@@ -13,6 +13,7 @@ export default proteger(async (req, res) => {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json(res, 400, { error: 'El email del cliente no es válido' });
   if (!b.pdf || !b.nombreArchivo) return json(res, 400, { error: 'Genera primero el PDF' });
   if (!b.asunto || !b.mensaje) return json(res, 400, { error: 'Falta el asunto o el texto del email' });
-  const r = await enviarPropuestaGhl(cfg, { ...b, email, pdf: Buffer.from(b.pdf, 'base64') });
+  const producto = b.producto === 'reservus' ? 'reservus' : 'empleados';
+  const r = await enviarPropuestaGhl(cfg, { ...b, cc: undefined, producto, email, pdf: Buffer.from(b.pdf, 'base64') });
   json(res, 200, { ok: true, ...r });
 });

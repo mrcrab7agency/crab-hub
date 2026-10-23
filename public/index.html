@@ -8,7 +8,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#FFFFFF">
 <link rel="icon" href="/assets/crab.png">
-<link rel="stylesheet" href="/assets/app.css?v=8">
+<link rel="stylesheet" href="/assets/app.css?v=9">
 </head>
 <body>
 
@@ -48,8 +48,9 @@
     <div class="brand"><img src="/assets/crab.png" alt="" width="34" height="34"><div><b>Crab Hub</b><small>Mr Crab 7 · La Buena IA</small></div></div>
     <nav class="nav">
       <div class="nav-h">Ventas</div>
-      <a href="#propuestas" class="on" aria-current="page" id="navPropuestas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg><span>Propuestas</span></a>
+      <a href="#propuestas" class="on" aria-current="page" id="navPropuestas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg><span>Propuestas Empleados IA</span></a>
       <a href="#seguimiento" id="navSeguimiento"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg><span>Seguimiento</span><i class="nb" id="navNoLeidas" hidden></i></a>
+      <a href="#reservus" id="navReservus"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4M8.5 15l2.3 2.2 4.7-4.7"/></svg><span>Propuestas Reservus IA</span></a>
       <a href="https://certimail-mrcrab7.netlify.app/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg><span>CertiMail</span><i class="ext" title="Se abre en su app actual">↗</i></a>
       <div class="nav-h">Clientes</div>
       <a href="https://inboxmrcrab.netlify.app/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H8l-4 4Z"/></svg><span>Inbox WhatsApp</span><i class="ext" title="Se abre en su app actual">↗</i></a>
@@ -200,6 +201,121 @@
     <section class="card visor" id="visor" hidden>
       <div class="visor-h"><h2>Vista previa</h2><button class="btn sm ghost" id="cerrarVisor" type="button">Cerrar</button></div>
       <iframe id="pdfFrame" title="Vista previa del PDF"></iframe>
+    </section>
+
+    <footer class="pie"><a href="https://mrcrab7.com" target="_blank" rel="noopener">©🦀MrCrab7 IA❤️Canarias</a></footer>
+  </main>
+
+  <main class="main" id="reservus" hidden>
+    <header class="head">
+      <div>
+        <p class="crumb">Ventas · Propuestas Reservus IA</p>
+        <h1 class="rs-h1"><img src="/assets/reservus-logo.png" alt="Reservus IA" width="160" height="36"><span>Propuesta</span></h1>
+      </div>
+      <div class="head-actions">
+        <select class="input sm" id="rsGuardadas" aria-label="Propuestas de Reservus IA guardadas"><option value="">Propuestas guardadas…</option></select>
+        <button class="btn" id="rsNueva" type="button">Nueva</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="col">
+        <section class="card">
+          <div class="card-h"><span class="step rs">1</span><div><h2>Cliente</h2><p>Escribe su web o su nombre y busco el resto: datos de empresa, logo y colores.</p></div></div>
+          <div class="fields two">
+            <div><label class="f" for="rsCliente">Nombre comercial</label><input class="input" id="rsCliente" placeholder="Restaurante La Marea"></div>
+            <div><label class="f" for="rsWeb">Web</label><input class="input" id="rsWeb" placeholder="restaurantelamarea.es" inputmode="url"></div>
+            <div><label class="f" for="rsEmail">Email del cliente</label><input class="input" id="rsEmail" type="email" placeholder="cliente@negocio.com"></div>
+            <div><label class="f" for="rsCif">CIF</label><input class="input" id="rsCif" placeholder="B12345678"></div>
+          </div>
+          <div class="row-actions">
+            <button class="btn primary" id="rsBuscar" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Buscar datos y logo</button>
+            <span class="hint" id="rsEstadoBuscar"></span>
+          </div>
+          <div class="fields two">
+            <div><label class="f" for="rsRazon">Razón social</label><input class="input" id="rsRazon" placeholder="La Marea Restauración, S.L."></div>
+            <div><label class="f" for="rsPara">Preparada para</label><input class="input" id="rsPara" placeholder="Nombre de contacto · negocio"></div>
+            <div class="span2"><label class="f" for="rsActividad">Actividad</label><input class="input" id="rsActividad" placeholder="Restaurante, peluquería, clínica, chárter de pesca…"></div>
+          </div>
+          <div class="logo-zone">
+            <div class="logo-prev" id="rsLogoPrev"><span>Sin logo</span></div>
+            <div class="logo-opts">
+              <label class="f">Logo del cliente</label>
+              <div class="cands" id="rsCands"></div>
+              <div class="logo-tools">
+                <label class="btn sm" for="rsSubirLogo">Subir logo</label><input id="rsSubirLogo" type="file" accept="image/*" class="sr">
+                <label class="chk"><input type="checkbox" id="rsLogoFondo"> Fondo blanco detrás</label>
+                <label class="chk">Tamaño <input type="range" id="rsLogoAlto" min="32" max="80" value="56"></label>
+                <label class="chk">Color <input type="color" id="rsAcento" value="#0073ff"></label>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-h"><span class="step rs">2</span><div><h2>Plan y modalidad</h2><p>Precios de reservusia.com. Los tres planes incluyen todas las funciones e idiomas; cambian los minutos y los SMS.</p></div></div>
+          <div class="rs-planes" id="rsPlanes" role="radiogroup" aria-label="Plan"></div>
+          <div class="rs-modo" role="radiogroup" aria-label="Modalidad">
+            <label class="rs-opt"><input type="radio" name="rsModalidad" value="alta" checked><span><b>Con alta</b><small>Instalación por nuestro equipo · sin permanencia · 30 días de garantía</small></span></label>
+            <label class="rs-opt"><input type="radio" name="rsModalidad" value="sinalta"><span><b>Sin alta</b><small>Configuración básica a cargo del cliente · 12 meses de permanencia · sin garantía</small></span></label>
+          </div>
+          <div class="fields three">
+            <div><label class="f" for="rsAlta">Alta (tarifa)</label><input class="input" id="rsAlta" type="number" min="0" step="1"></div>
+            <div><label class="f" for="rsMensual">Cuota mensual</label><input class="input" id="rsMensual" type="number" min="0" step="1"></div>
+            <div><label class="f">&nbsp;</label><button class="btn sm block" id="rsTarifa" type="button">Volver a la tarifa del plan</button></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-h"><span class="step rs">3</span><div><h2>Extras opcionales</h2><p>Siempre como añadidos, no como paquete. Puedes ajustar el precio de cada uno.</p></div></div>
+          <div class="rs-extras" id="rsExtras"></div>
+        </section>
+
+        <section class="card">
+          <div class="card-h"><span class="step rs">4</span><div><h2>Precio y condiciones</h2><p>Si pones un precio del alta menor que la tarifa, el PDF muestra la tarifa tachada y el descuento en rojo.</p></div></div>
+          <div class="fields three">
+            <div><label class="f" for="rsPrecioAlta">Precio final del alta (opcional)</label><input class="input" id="rsPrecioAlta" type="number" min="0" step="1" placeholder="= tarifa"></div>
+            <div><label class="f" for="rsPagoAlta">Forma de pago</label><select class="input" id="rsPagoAlta"><option value="unico">Pago inicial a la firma</option><option value="5050">50 % firma · 50 % puesta en marcha</option><option value="3pagos">3 pagos sin intereses</option></select></div>
+            <div><label class="f" for="rsValidez">Validez (días)</label><input class="input" id="rsValidez" type="number" min="1" value="15"></div>
+            <div><label class="f" for="rsRef">Referencia</label><input class="input" id="rsRef" placeholder="MC7-RIA-2026-001"></div>
+            <div class="span2"><label class="f" for="rsAjusteLabel">Texto del descuento</label><input class="input" id="rsAjusteLabel" placeholder="Descuento especial en el alta (no extensible)"></div>
+          </div>
+          <div class="row-actions"><button class="btn sm" id="rsLanzamiento" type="button">Aplicar oferta de lanzamiento (−30 % en el alta)</button><span class="hint">Para los 10 primeros negocios, a cambio de un vídeo con su experiencia.</span></div>
+          <div class="fields">
+            <div><label class="f" for="rsTitular">Titular de portada</label><input class="input" id="rsTitular" placeholder="Reservus IA para…: ninguna llamada sin atender"></div>
+            <div><label class="f" for="rsIntro">Texto de «Qué hace Reservus IA»</label><textarea class="input" id="rsIntro" rows="3" placeholder="Si lo dejas vacío, se redacta solo con el nombre del cliente"></textarea></div>
+            <div><label class="f" for="rsNota">Nota adicional (opcional)</label><input class="input" id="rsNota" placeholder="Se añade a las condiciones de la última página"></div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="col resumen">
+        <section class="card sticky">
+          <h2>Resumen</h2>
+          <dl class="cifras">
+            <div><dt>Plan</dt><dd id="rsRPlan">—</dd></div>
+            <div><dt>Alta</dt><dd id="rsRAlta">0 €</dd></div>
+            <div class="dto" id="rsRDtoRow" hidden><dt id="rsRDtoLbl">Descuento</dt><dd id="rsRDto"></dd></div>
+            <div><dt>Extras pago único</dt><dd id="rsRUnico">0 €</dd></div>
+            <div><dt>Pago inicial</dt><dd id="rsRInicial">0 €</dd></div>
+            <div><dt>Cuota mensual</dt><dd id="rsRMensual">0 €</dd></div>
+            <div class="total"><dt>Primer año + IGIC</dt><dd id="rsRTotal">0 €</dd></div>
+          </dl>
+          <button class="btn primary block lg" id="rsPdf" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h5M12 11v6M9 14l3 3 3-3"/></svg>Generar PDF</button>
+          <p class="hint center" id="rsEstadoPdf">Se guarda en este navegador y en el seguimiento.</p>
+          <div class="pdf-actions" id="rsPdfActions" hidden>
+            <button class="btn primary block" id="rsGhl" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>Enviar por GHL</button>
+            <a class="btn block" id="rsDescargar" download>Descargar PDF</a>
+            <div class="enviado" id="rsEnviado" hidden></div>
+            <p class="hint">Sale por GHL con seguimiento de apertura y queda en Seguimiento.</p>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <section class="card visor" id="rsVisor" hidden>
+      <div class="visor-h"><h2>Vista previa</h2><button class="btn sm ghost" id="rsCerrarVisor" type="button">Cerrar</button></div>
+      <iframe id="rsPdfFrame" title="Vista previa del PDF de Reservus IA"></iframe>
     </section>
 
     <footer class="pie"><a href="https://mrcrab7.com" target="_blank" rel="noopener">©🦀MrCrab7 IA❤️Canarias</a></footer>
@@ -360,6 +476,6 @@
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script src="/assets/app.js?v=8" defer></script>
+<script src="/assets/app.js?v=9" defer></script>
 </body>
 </html>
