@@ -48,6 +48,7 @@ export function estadoDe(reg) {
 }
 
 export const totalDe = (p) => {
+  if (p?.producto === 'reservus' && !p?.externo) return Number(p.valorRs) || 0;
   const sub = Math.round((p?.empleados || []).reduce((a, e) => a + 1000 * (Number(e.coef) || 0), 0));
   return p?.precioFinal !== undefined && p?.precioFinal !== null && p?.precioFinal !== '' ? Number(p.precioFinal) : sub;
 };
@@ -69,7 +70,7 @@ export function resumenDe(reg) {
   const fechas = [p.editado, reg.creado, ...envios.map((e) => e.fecha), ...envios.map((e) => e.abierto), ...(c.respuestas || []).map((r) => r.fecha), c.cierre?.fecha].filter(Boolean).sort();
   return {
     id: reg.id, cliente: p.cliente || '', razon: p.razon || '', ref: p.ref || '', email: ult?.para || p.email || '', logo: logoDe(reg),
-    empleados: (p.empleados || []).length, total: totalDe(p), estado: estadoDe(reg), envios: envios.length,
+    empleados: (p.empleados || []).length, producto: p.producto || (p.externo ? 'otro' : 'empleados'), planRs: p.producto === 'reservus' ? (p.planRs || '') : '', total: totalDe(p), estado: estadoDe(reg), envios: envios.length,
     ultimoEnvio: ult?.fecha || null, abierto: envios.map((e) => e.abierto).filter(Boolean).sort().pop() || null, estadoEmail: ult?.estadoEmail || '', respuestas: (c.respuestas || []).length,
     noLeidas: (c.respuestas || []).filter((r) => !r.leida).length, academia: !!p.academia, externo: !!p.externo, holded: !!(p.holded?.firma || p.holded?.final),
     creado: reg.creado, actividad: fechas[fechas.length - 1] || reg.creado,

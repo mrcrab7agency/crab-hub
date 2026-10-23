@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const MARCA_DIR = path.join(process.cwd(), 'api', '_marca');
-const dataUri = (f) => 'data:image/png;base64,' + fs.readFileSync(path.join(MARCA_DIR, f)).toString('base64');
+export const dataUri = (f) => 'data:image/png;base64,' + fs.readFileSync(path.join(MARCA_DIR, f)).toString('base64');
 let MARCA;
 function marca() {
   MARCA ||= { crab: dataUri('mrcrab7-logo.png'), hub: dataUri('hubiabot-logo.png'), wm: dataUri('empleados-ia-wordmark.png') };
@@ -18,7 +18,7 @@ export const PLANES = {
   empresas: ['Empresas', '249 €/mes', '27.500 créditos al mes · hasta 50 empleados IA · propietario + 9 invitados · ordenador 4 vCPU · 8 GiB · departamentos y exportación de auditoría · recargas desde 10 € = 1.000 créditos'],
 };
 
-const esc = (s = '') => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+export const esc = (s = '') => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 export function eur(v) {
   const n = Math.round(v * 100) / 100;
   const s = Math.abs(n).toLocaleString('es-ES', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2, useGrouping: 'always' });
@@ -26,10 +26,10 @@ export function eur(v) {
 }
 const coef = (c) => c.toFixed(2).replace('.', ',');
 const nivel = (k) => NIVELES[Math.round(k * 10) / 10] || 'Personalizado';
-const fechaES = (d) => d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Atlantic/Canary' });
-const fechaLarga = (d) => d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Atlantic/Canary' });
+export const fechaES = (d) => d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Atlantic/Canary' });
+export const fechaLarga = (d) => d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Atlantic/Canary' });
 
-const CSS = `@page{size:A4;margin:0}*{box-sizing:border-box;margin:0;padding:0}
+export const CSS = `@page{size:A4;margin:0}*{box-sizing:border-box;margin:0;padding:0}
 :root{--ink:#0b1426;--mut:#56627a;--line:#e3e8f1;--soft:#f4f7fc;--navy:#060913}
 html,body{font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif;color:var(--ink);font-size:10.2pt;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 h1,h2,h3,.num{font-family:Sora,Inter,sans-serif}
@@ -90,7 +90,7 @@ table{width:100%;border-collapse:collapse}
 .foot img{height:24px;width:auto}.foot .logos{display:flex;align-items:center;gap:3mm}.foot .logos .hub{height:15px}
 .foot .x{color:#56627a;font-size:9pt}.foot .r{text-align:right;line-height:1.55;font-size:6.6pt;white-space:nowrap}.foot a{color:#b6c0d4;text-decoration:none}`;
 
-const CORAZON = '<svg width="8" height="7" viewBox="0 0 10 9" style="vertical-align:-1px"><path d="M5 9 0.8 4.8A2.6 2.6 0 0 1 5 1.4a2.6 2.6 0 0 1 4.2 3.4Z" fill="#ff4d5e"/></svg>';
+export const CORAZON = '<svg width="8" height="7" viewBox="0 0 10 9" style="vertical-align:-1px"><path d="M5 9 0.8 4.8A2.6 2.6 0 0 1 5 1.4a2.6 2.6 0 0 1 4.2 3.4Z" fill="#ff4d5e"/></svg>';
 
 export function calcular(p) {
   const emps = p.empleados || [];
@@ -210,7 +210,7 @@ ${otros.map((o) => `<tr><td class="e"><b>${esc(o.nombre)}</b><small>${esc(o.desc
 }
 
 // Tono oscuro y fondo suave a partir del color de marca del cliente.
-function derivarAcento(hex) {
+export function derivarAcento(hex) {
   const n = parseInt(hex.slice(1), 16);
   const r = n >> 16, g = (n >> 8) & 255, b = n & 255;
   const mix = (c, t, f) => Math.round(c + (t - c) * f);
